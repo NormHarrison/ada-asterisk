@@ -1,0 +1,18 @@
+with "../../asterisk.gpr";
+
+
+project ProcessAGI_Example is
+
+   for Source_Dirs use ("src/");
+   for Object_Dir use "obj/";
+   for Exec_Dir use "bin/";
+   for Main use ("processagi_example");
+
+   package Compiler is
+
+      for Switches ("Ada") use
+        ("-gnatwae");
+
+   end Compiler;
+
+end ProcessAGI_Example;

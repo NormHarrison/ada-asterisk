@@ -1,0 +1,3 @@
+# Ensure this directory stays completely empty, minus this file.
+*
+!.gitignore

@@ -1,0 +1,16 @@
+with "../../ada_asterisk";
+
+project Example_Server is
+
+   for Main use ("example_server");
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+
+   package Compiler is
+
+      for Switches ("Ada") use ("-gnatwae", "-g");
+
+   end Compiler;
+
+end Example_Server;
