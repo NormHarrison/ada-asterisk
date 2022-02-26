@@ -29,11 +29,11 @@ begin
    <<Do_It_Again>>
 
    AMI_Client.Login
-     (Username => "TEST_USER",
-      Secret   => "REALLY_EASY123",
+     (Username => "<ami_username>",
+      Secret   => "<ami_secret>",
       Port     => 5039,
       Address  => (Family => GNAT.Sockets.Family_Inet,
-                   Sin_V4 => (10, 0, 0, 23)));
+                   Sin_V4 => (127, 0, 0, 1)));
 
    Put_Line ("Connected to: " & AMI_Client.Get_AMI_Version);
 

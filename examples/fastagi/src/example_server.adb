@@ -54,7 +54,7 @@ begin
      (Server  => AGI_Server,
       Port    => 1234,
       Address => (Family => GNAT.Sockets.Family_Inet,
-                  Sin_V4 => (10, 0, 0, 26)));
+                  Sin_V4 => (127, 0, 0, 1)));
 
    Put_Line ("Listening for connections on: " & GNAT.Sockets.Image
      (Asterisk.AGI.FastAGI.Get_Bind_Address (AGI_Server)));
