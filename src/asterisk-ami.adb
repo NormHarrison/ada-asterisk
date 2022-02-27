@@ -602,6 +602,9 @@ package body Asterisk.AMI is
          Self.Socket_Write_Mutex.Acquire;
          Self.Channel.Write_Line (Action_String);
          Self.Socket_Write_Mutex.Release;
+         --  `Channel.Write_Line` shouldn't ever raise an exception, so an
+         --  exception handler to ensure the mutex is released isn't
+         --  required here.
       end if;
    end Send_Action;
 
