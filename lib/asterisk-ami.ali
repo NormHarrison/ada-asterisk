@@ -1,0 +1,642 @@
+V "GNAT Lib v2020"
+A -gnatA
+A -gnatwa
+A -gnatwe
+A -g
+A -mtune=generic
+A -march=x86-64
+P SS ZX
+
+RN
+RV SIMPLE_BARRIERS
+RV NO_ALLOCATORS
+RV NO_CALENDAR
+RV NO_DELAY
+RV NO_DISPATCH
+RV NO_DISPATCHING_CALLS
+RV NO_EXCEPTION_HANDLERS
+RV NO_EXCEPTION_PROPAGATION
+RV NO_EXCEPTIONS
+RV NO_FIXED_POINT
+RV NO_IMPLICIT_CONDITIONALS
+RV NO_LOCAL_ALLOCATORS
+RV NO_NESTED_FINALIZATION
+RV NO_PROTECTED_TYPES
+RV NO_RECURSION
+RV NO_RELATIVE_DELAY
+RV NO_SECONDARY_STACK
+RV NO_SELECT_STATEMENTS
+RV NO_STANDARD_STORAGE_POOLS
+RV NO_TASKING
+RV NO_TERMINATE_ALTERNATIVES
+RV NO_UNCHECKED_ACCESS
+RV NO_UNCHECKED_DEALLOCATION
+RV NO_DEFAULT_INITIALIZATION
+RV NO_DYNAMIC_SIZED_OBJECTS
+RV NO_IMPLEMENTATION_ATTRIBUTES
+RV NO_IMPLEMENTATION_PRAGMAS
+RV NO_IMPLICIT_ALIASING
+RV NO_IMPLICIT_LOOPS
+RV NO_ELABORATION_CODE
+RV MAX_PROTECTED_ENTRIES=1
+RV MAX_SELECT_ALTERNATIVES=2
+RV MAX_TASK_ENTRIES=1
+RV MAX_ASYNCHRONOUS_SELECT_NESTING=1+
+RV MAX_ENTRY_QUEUE_LENGTH=1+
+
+U asterisk.ami%b	asterisk-ami.adb	68c9b6aa OO PK
+W ada%s			ada.ads			ada.ali
+W ada.calendar%s	a-calend.adb		a-calend.ali
+Z ada.calendar.delays%s	a-caldel.adb		a-caldel.ali
+W ada.calendar.formatting%s  a-calfor.adb	a-calfor.ali
+Z ada.exceptions%s	a-except.adb		a-except.ali
+W ada.streams%s		a-stream.adb		a-stream.ali
+W ada.strings%s		a-string.ads		a-string.ali
+W ada.strings.fixed%s	a-strfix.adb		a-strfix.ali
+W ada.strings.maps%s	a-strmap.adb		a-strmap.ali
+Z ada.tags%s		a-tags.adb		a-tags.ali
+W ada.task_identification%s  a-taside.adb	a-taside.ali
+W asterisk%s		asterisk.adb		asterisk.ali
+Z interfaces%s		interfac.ads		interfac.ali
+Z system%s		system.ads		system.ali
+Z system.concat_2%s	s-conca2.adb		s-conca2.ali
+Z system.concat_3%s	s-conca3.adb		s-conca3.ali
+Z system.concat_4%s	s-conca4.adb		s-conca4.ali
+Z system.concat_5%s	s-conca5.adb		s-conca5.ali
+Z system.concat_9%s	s-conca9.adb		s-conca9.ali
+Z system.img_int%s	s-imgint.adb		s-imgint.ali
+Z system.pool_global%s	s-pooglo.adb		s-pooglo.ali
+Z system.secondary_stack%s  s-secsta.adb	s-secsta.ali
+Z system.soft_links%s	s-soflin.adb		s-soflin.ali
+Z system.standard_library%s  s-stalib.adb	s-stalib.ali
+Z system.storage_elements%s  s-stoele.adb	s-stoele.ali
+Z system.storage_pools%s  s-stopoo.adb		s-stopoo.ali
+Z system.storage_pools.subpools%s  s-stposu.adb	s-stposu.ali
+Z system.tasking%s	s-taskin.adb		s-taskin.ali
+Z system.tasking.async_delays%s  s-taasde.adb	s-taasde.ali
+Z system.tasking.protected_objects%s  s-taprob.adb  s-taprob.ali
+Z system.tasking.protected_objects.entries%s  s-tpoben.adb  s-tpoben.ali
+Z system.tasking.protected_objects.operations%s  s-tpobop.adb  s-tpobop.ali
+Z system.tasking.rendezvous%s  s-tasren.adb	s-tasren.ali
+Z system.tasking.stages%s  s-tassta.adb		s-tassta.ali
+Z system.val_int%s	s-valint.adb		s-valint.ali
+
+U asterisk.ami%s	asterisk-ami.ads	55c478ca BN EE OO PF PK
+W ada%s			ada.ads			ada.ali
+W ada.calendar%s	a-calend.adb		a-calend.ali
+W ada.exceptions%s	a-except.adb		a-except.ali
+Z ada.real_time%s	a-reatim.adb		a-reatim.ali
+Z ada.tags%s		a-tags.adb		a-tags.ali
+W ada.task_termination%s  a-taster.adb		a-taster.ali
+W ada.unchecked_deallocation%s
+W agnostic_io%s		agnostic_io.ads		agnostic_io.ali
+W asterisk%s		asterisk.adb		asterisk.ali
+W gnat%s		gnat.ads		gnat.ali
+W gnat.sockets%s	g-socket.adb		g-socket.ali
+W socket_aio%s		socket_aio.adb		socket_aio.ali
+Z system%s		system.ads		system.ali
+Z system.exception_table%s  s-exctab.adb	s-exctab.ali
+Z system.finalization_masters%s  s-finmas.adb	s-finmas.ali
+Z system.parameters%s	s-parame.adb		s-parame.ali
+Z system.pool_global%s	s-pooglo.adb		s-pooglo.ali
+Z system.secondary_stack%s  s-secsta.adb	s-secsta.ali
+Z system.soft_links%s	s-soflin.adb		s-soflin.ali
+Z system.standard_library%s  s-stalib.adb	s-stalib.ali
+Z system.task_info%s	s-tasinf.adb		s-tasinf.ali
+Z system.tasking%s	s-taskin.adb		s-taskin.ali
+Z system.tasking.protected_objects%s  s-taprob.adb  s-taprob.ali
+Z system.tasking.protected_objects.entries%s  s-tpoben.adb  s-tpoben.ali
+Z system.tasking.stages%s  s-tassta.adb		s-tassta.ali
+
+D ada.ads		20200819050642 76789da1 ada%s
+D a-calend.ads		20200819050641 474d9720 ada.calendar%s
+D a-caldel.ads		20200819050641 9f20b83d ada.calendar.delays%s
+D a-calfor.ads		20200819050641 0f4707d1 ada.calendar.formatting%s
+D a-catizo.ads		20200819050641 eaa56756 ada.calendar.time_zones%s
+D a-charac.ads		20200819050641 2d3ec45b ada.characters%s
+D a-chlat1.ads		20200819050641 66457d31 ada.characters.latin_1%s
+D a-except.ads		20200819050642 a7106115 ada.exceptions%s
+D a-finali.ads		20200819050642 bf4f806b ada.finalization%s
+D a-reatim.ads		20200819050640 0240fc73 ada.real_time%s
+D a-stream.ads		20200819050642 119b8fb3 ada.streams%s
+D a-string.ads		20200819050642 90ac6797 ada.strings%s
+D a-strfix.ads		20200819050642 86d6bc21 ada.strings.fixed%s
+D a-strmap.ads		20200819050642 e8bb714a ada.strings.maps%s
+D a-strunb.ads		20200819050642 1656705b ada.strings.unbounded%s
+D a-tags.ads		20200819050643 edddc8f0 ada.tags%s
+D a-taside.ads		20200819050640 00e3a3f6 ada.task_identification%s
+D a-taster.ads		20200819050640 fe3f8ac8 ada.task_termination%s
+D a-unccon.ads		20200819050643 0e9b276f ada.unchecked_conversion%s
+D a-uncdea.ads		20200819050643 eff36322 ada.unchecked_deallocation%s
+D agnostic_io.ads	20220221225842 aa0769fc agnostic_io%s
+D asterisk.ads		20220226182843 91b24dd6 asterisk%s
+D asterisk-ami.ads	20220226182843 79cb8743 asterisk.ami%s
+D asterisk-ami.adb	20220227101034 f1fcb081 asterisk.ami%b
+D gnat.ads		20200819050644 b5988c27 gnat%s
+D g-socket.ads		20200819050644 af0c6c01 gnat.sockets%s
+D interfac.ads		20200819050644 5ab55268 interfaces%s
+D i-c.ads		20200819050644 c624fa43 interfaces.c%s
+D socket_aio.ads	20220219153510 4927a87d socket_aio%s
+D system.ads		20200819050647 4635ec04 system%s
+D s-atacco.ads		20200819050645 4c36d12f system.address_to_access_conversions%s
+D s-atocou.ads		20200819050645 b45c2d8d system.atomic_counters%s
+D s-conca2.ads		20200819050645 02a0d7d0 system.concat_2%s
+D s-conca3.ads		20200819050645 0b705ca5 system.concat_3%s
+D s-conca4.ads		20200819050645 7e642b20 system.concat_4%s
+D s-conca5.ads		20200819050645 875e432e system.concat_5%s
+D s-conca9.ads		20200819050645 dc4a3424 system.concat_9%s
+D s-exctab.ads		20200819050645 54135002 system.exception_table%s
+D s-finmas.ads		20200819050645 7811a767 system.finalization_masters%s
+D s-finroo.ads		20200819050645 4ff27390 system.finalization_root%s
+D s-imgint.ads		20200819050645 02dbe0c2 system.img_int%s
+D s-linux.ads		20200819050640 ed0b8aee system.linux%s
+D s-memory.ads		20200819050645 597d6634 system.memory%s
+D s-multip.ads		20200819050645 38ac9f73 system.multiprocessors%s
+D s-oscons.ads		20200819100019 ffb5e830 system.os_constants%s
+D s-osinte.ads		20200819050640 675bad69 system.os_interface%s
+D s-parame.ads		20200819050646 4752c4cb system.parameters%s
+D s-pooglo.ads		20200819050646 ede33ef8 system.pool_global%s
+D s-secsta.ads		20200819050646 9b3ab94b system.secondary_stack%s
+D s-soflin.ads		20200819050646 a7318a92 system.soft_links%s
+D s-stache.ads		20200819050646 a37c21ec system.stack_checking%s
+D s-stausa.ads		20200819050646 017a0a05 system.stack_usage%s
+D s-stalib.ads		20200819050646 6b7a13f2 system.standard_library%s
+D s-stalib.adb		20200819050646 f2fe2716 system.standard_library%b
+D s-stoele.ads		20200819050646 2dc34a04 system.storage_elements%s
+D s-stoele.adb		20200819050646 ed88f8fb system.storage_elements%b
+D s-stopoo.ads		20200819050646 e9fa2dd8 system.storage_pools%s
+D s-stposu.ads		20200819050646 e251976f system.storage_pools.subpools%s
+D s-stratt.ads		20200819050646 9a2744e9 system.stream_attributes%s
+D s-tasinf.ads		20200819050641 2b3f8252 system.task_info%s
+D s-taspri.ads		20200819050641 f40ac08d system.task_primitives%s
+D s-taprop.ads		20200819050641 6eefbe12 system.task_primitives.operations%s
+D s-taskin.ads		20200819050641 88fba9ad system.tasking%s
+D s-taasde.ads		20200819050640 422600df system.tasking.async_delays%s
+D s-taprob.ads		20200819050641 acd6094d system.tasking.protected_objects%s
+D s-tpoben.ads		20200819050641 60ad3dae system.tasking.protected_objects.entries%s
+D s-tpobop.ads		20200819050641 5f548bb3 system.tasking.protected_objects.operations%s
+D s-tasren.ads		20200819050641 a67a9949 system.tasking.rendezvous%s
+D s-tassta.ads		20200819050641 cca55c94 system.tasking.stages%s
+D s-traent.ads		20200819050646 005bf670 system.traceback_entries%s
+D s-unstyp.ads		20200819050646 5ecf7212 system.unsigned_types%s
+D s-valint.ads		20200819050646 b5ff6963 system.val_int%s
+G a e
+G c s s s [s asterisk__ami 14 1 none]
+G c Z s b [get_header asterisk__ami 67 13 none]
+G c Z s b [get_field asterisk__ami 78 13 none]
+G c Z s b [get_value asterisk__ami 87 13 none]
+G c Z s b [set_header asterisk__ami 101 14 none]
+G c Z s b [set_header_at asterisk__ami 110 14 none]
+G c Z s b [set_event_loop_termination_handler asterisk__ami 136 14 none]
+G c Z s b [to_socket asterisk__ami 152 13 none]
+G c Z s b [login asterisk__ami 158 14 none]
+G c Z s b [logoff asterisk__ami 190 14 none]
+G c Z s b [send_action asterisk__ami 199 14 none]
+G c Z s b [send_action asterisk__ami 207 13 none]
+G c Z s s [event_callback asterisk__ami 219 14 none]
+G c Z s b [is_connected asterisk__ami 234 13 none]
+G c Z s b [get_server_address asterisk__ami 241 13 none]
+G c Z s b [get_ami_version asterisk__ami 247 13 none]
+G c Z s b [get_disconnection_time asterisk__ami 256 13 none]
+G c Z s s [message_typeDI asterisk__ami 272 9 none]
+G c Z s s [message_typeDA asterisk__ami 272 9 none]
+G c Z s s [message_typeDF asterisk__ami 272 9 none]
+G c Z s s [message_typeIP asterisk__ami 272 9 none]
+G c Z s s [free asterisk__ami 279 14 none]
+G c Z s b [initialize asterisk__ami__action_id_manager 301 17 none]
+G c Z s b [index_position asterisk__ami__action_id_manager 302 16 none]
+G c Z s b [acquire_id asterisk__ami__action_id_manager 303 13 none]
+G c Z s b [release_id asterisk__ami__action_id_manager 304 17 none]
+G c Z s b [action_id_manager__initializeN asterisk__ami 301 7 none]
+G c Z s b [action_id_manager__initializeP asterisk__ami 301 7 none]
+G c Z s b [action_id_manager__index_positionN asterisk__ami 302 7 none]
+G c Z s b [action_id_manager__index_positionP asterisk__ami 302 7 none]
+G c Z s b [action_id_manager__release_idN asterisk__ami 304 7 none]
+G c Z s b [action_id_manager__release_idP asterisk__ami 304 7 none]
+G c Z s b [await_response asterisk__ami__response_event_type 311 13 none]
+G c Z s b [set_response asterisk__ami__response_event_type 312 17 none]
+G c Z s b [response_event_type__set_responseN asterisk__ami 312 7 none]
+G c Z s b [response_event_type__set_responseP asterisk__ami 312 7 none]
+G c Z s b [event_loop_type asterisk__ami 326 14 none]
+G c Z s b [start asterisk__ami__event_loop_type 327 13 none]
+G c Z s s [action_typeDI asterisk__ami 291 9 none]
+G c Z s s [action_typeDF asterisk__ami 291 9 none]
+G c Z s s [action_typeIP asterisk__ami 291 9 none]
+G c Z s s [event_loop_typeVIP asterisk__ami 326 4 none]
+G c Z s s [P90sIP asterisk__ami 327 7 none]
+G c Z s s [response_event_typeVDI asterisk__ami 310 4 none]
+G c Z s s [response_event_typeVDF asterisk__ami 310 4 none]
+G c Z s s [response_event_typeVIP asterisk__ami 310 4 none]
+G c Z s s [P77sIP asterisk__ami 311 7 none]
+G c Z s s [Tresponse_event_arrayBIP asterisk__ami 318 4 none]
+G c Z s s [Tresponse_event_arrayBDI asterisk__ami 318 4 none]
+G c Z s s [Tresponse_event_arrayBDF asterisk__ami 318 4 none]
+G c Z s s [Taction_id_arrayBIP asterisk__ami 289 4 none]
+G c Z s s [action_id_managerVDI asterisk__ami 300 4 none]
+G c Z s s [action_id_managerVDF asterisk__ami 300 4 none]
+G c Z s s [action_id_managerVIP asterisk__ami 300 4 none]
+G c Z s s [P66sIP asterisk__ami 303 7 none]
+G c Z s s [client_typeDF asterisk__ami 334 9 none]
+G c Z s s [client_typeDI asterisk__ami 334 9 none]
+G c Z s s [client_typeIP asterisk__ami 334 9 none]
+G c Z b b [count_lines asterisk__ami 19 13 none]
+G c Z b b [form_ami_message asterisk__ami 35 14 none]
+G c Z b b [clean_up_client asterisk__ami 84 14 none]
+G c Z b b [concatenate_headers asterisk__ami 301 13 none]
+G r l unbounded_string_array [s asterisk__ami 14 1 none] [unbounded_string_arrayDI asterisk 17 9 none]
+G r s unbounded_string_array [s asterisk__ami 14 1 none] [unbounded_string_arrayIP asterisk 17 9 none]
+G r c none [to_socket asterisk__ami 152 13 none] [to_socket socket_aio 25 13 none]
+G r s unbounded_string_array [login asterisk__ami 158 14 none] [unbounded_string_arrayIP asterisk 17 9 none]
+G r l unbounded_string_array [login asterisk__ami 158 14 none] [unbounded_string_arrayDI asterisk 17 9 none]
+G r k unbounded_string_array [login asterisk__ami 158 14 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r c none [login asterisk__ami 158 14 none] [is_connected socket_aio 30 13 none]
+G r c none [login asterisk__ami 158 14 none] [set_socket socket_aio 21 14 none]
+G r c none [login asterisk__ami 158 14 none] [read_line socket_aio 47 24 none]
+G r c none [login asterisk__ami 158 14 none] [to_stream_element_array socket_aio 51 13 none]
+G r c none [login asterisk__ami 158 14 none] [read socket_aio 55 13 none]
+G r c none [login asterisk__ami 158 14 none] [close socket_aio 28 14 none]
+G r j unbounded_string_array [login asterisk__ami 158 14 none] [unbounded_string_arrayDA asterisk 17 9 none]
+G r o none [login asterisk__ami 158 14 none] [acquire asterisk__critical_section 25 13 none]
+G r c none [login asterisk__ami 158 14 none] [write_line socket_aio 37 25 none]
+G r p none [login asterisk__ami 158 14 none] [release asterisk__critical_section 26 17 none]
+G r s unbounded_string_array [logoff asterisk__ami 190 14 none] [unbounded_string_arrayIP asterisk 17 9 none]
+G r l unbounded_string_array [logoff asterisk__ami 190 14 none] [unbounded_string_arrayDI asterisk 17 9 none]
+G r k unbounded_string_array [logoff asterisk__ami 190 14 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r c none [logoff asterisk__ami 190 14 none] [is_connected socket_aio 30 13 none]
+G r o none [logoff asterisk__ami 190 14 none] [acquire asterisk__critical_section 25 13 none]
+G r c none [logoff asterisk__ami 190 14 none] [write_line socket_aio 37 25 none]
+G r p none [logoff asterisk__ami 190 14 none] [release asterisk__critical_section 26 17 none]
+G r c none [send_action asterisk__ami 199 14 none] [is_connected socket_aio 30 13 none]
+G r o none [send_action asterisk__ami 199 14 none] [acquire asterisk__critical_section 25 13 none]
+G r c none [send_action asterisk__ami 199 14 none] [write_line socket_aio 37 25 none]
+G r p none [send_action asterisk__ami 199 14 none] [release asterisk__critical_section 26 17 none]
+G r c none [send_action asterisk__ami 207 13 none] [is_connected socket_aio 30 13 none]
+G r j unbounded_string_array [send_action asterisk__ami 207 13 none] [unbounded_string_arrayDA asterisk 17 9 none]
+G r o none [send_action asterisk__ami 207 13 none] [acquire asterisk__critical_section 25 13 none]
+G r c none [send_action asterisk__ami 207 13 none] [write_line socket_aio 37 25 none]
+G r p none [send_action asterisk__ami 207 13 none] [release asterisk__critical_section 26 17 none]
+G r k unbounded_string_array [send_action asterisk__ami 207 13 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r c none [is_connected asterisk__ami 234 13 none] [is_connected socket_aio 30 13 none]
+G r c none [get_ami_version asterisk__ami 247 13 none] [is_connected socket_aio 30 13 none]
+G r j unbounded_string_array [message_typeDA asterisk__ami 272 9 none] [unbounded_string_arrayDA asterisk 17 9 none]
+G r k unbounded_string_array [message_typeDF asterisk__ami 272 9 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r s unbounded_string_array [message_typeIP asterisk__ami 272 9 none] [unbounded_string_arrayIP asterisk 17 9 none]
+G r l unbounded_string_array [message_typeIP asterisk__ami 272 9 none] [unbounded_string_arrayDI asterisk 17 9 none]
+G r k unbounded_string_array [message_typeIP asterisk__ami 272 9 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r k unbounded_string_array [set_response asterisk__ami__response_event_type 312 17 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r c none [start asterisk__ami__event_loop_type 327 13 none] [to_stream_element_array socket_aio 51 13 none]
+G r c none [start asterisk__ami__event_loop_type 327 13 none] [read socket_aio 55 13 none]
+G r c none [start asterisk__ami__event_loop_type 327 13 none] [is_connected socket_aio 30 13 none]
+G r c none [start asterisk__ami__event_loop_type 327 13 none] [close socket_aio 28 14 none]
+G r s unbounded_string_array [start asterisk__ami__event_loop_type 327 13 none] [unbounded_string_arrayIP asterisk 17 9 none]
+G r l unbounded_string_array [start asterisk__ami__event_loop_type 327 13 none] [unbounded_string_arrayDI asterisk 17 9 none]
+G r k unbounded_string_array [start asterisk__ami__event_loop_type 327 13 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r c none [event_loop_type asterisk__ami 326 14 none] [to_stream_element_array socket_aio 51 13 none]
+G r c none [event_loop_type asterisk__ami 326 14 none] [read socket_aio 55 13 none]
+G r c none [event_loop_type asterisk__ami 326 14 none] [is_connected socket_aio 30 13 none]
+G r c none [event_loop_type asterisk__ami 326 14 none] [close socket_aio 28 14 none]
+G r s unbounded_string_array [event_loop_type asterisk__ami 326 14 none] [unbounded_string_arrayIP asterisk 17 9 none]
+G r l unbounded_string_array [event_loop_type asterisk__ami 326 14 none] [unbounded_string_arrayDI asterisk 17 9 none]
+G r k unbounded_string_array [event_loop_type asterisk__ami 326 14 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r k unbounded_string_array [action_typeDF asterisk__ami 291 9 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r s unbounded_string_array [action_typeIP asterisk__ami 291 9 none] [unbounded_string_arrayIP asterisk 17 9 none]
+G r l unbounded_string_array [action_typeIP asterisk__ami 291 9 none] [unbounded_string_arrayDI asterisk 17 9 none]
+G r k unbounded_string_array [action_typeIP asterisk__ami 291 9 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r k critical_section [client_typeDF asterisk__ami 334 9 none] [critical_sectionVDF asterisk 22 4 none]
+G r s socket_channel_type [client_typeIP asterisk__ami 334 9 none] [socket_channel_typeIP socket_aio 96 9 none]
+G r s critical_section [client_typeIP asterisk__ami 334 9 none] [critical_sectionVIP asterisk 22 4 none]
+G r l critical_section [client_typeIP asterisk__ami 334 9 none] [critical_sectionVDI asterisk 22 4 none]
+G r s unbounded_string_array [form_ami_message asterisk__ami 35 14 none] [unbounded_string_arrayIP asterisk 17 9 none]
+G r l unbounded_string_array [form_ami_message asterisk__ami 35 14 none] [unbounded_string_arrayDI asterisk 17 9 none]
+G r k unbounded_string_array [form_ami_message asterisk__ami 35 14 none] [unbounded_string_arrayDF asterisk 17 9 none]
+G r c none [clean_up_client asterisk__ami 84 14 none] [is_connected socket_aio 30 13 none]
+G r c none [clean_up_client asterisk__ami 84 14 none] [close socket_aio 28 14 none]
+X 1 ada.ads
+16K9*Ada 20e8 23|1r6 2r6 8r14 9r14 138r24 252r34 257r37 279r26 321r34 321r55
+. 343r21 346r30 349r30 350r30 24|3r6 4r6 5r6 6r6 7r6 8r6 13r8 39r27 40r9
+. 53r10 57r23 63r47 86r42 98r40 199r10 437r24 461r11 517r14 526r7 618r11
+. 623r10 718r37
+X 2 a-calend.ads
+36K13*Calendar 409e17 23|1w10 252r38 257r41 321r38 321r59 346r34 24|8r10
+. 86r46 517r18 718r41
+42I9*Time<222I9> 23|252r47 257r50 321r47 346r43 24|718r50
+48I12*Year_Number{integer}
+49I12*Month_Number{integer}
+50I12*Day_Number{integer}
+56V13*Clock{42I9} 24|86s55
+83V13*Time_Of{42I9} 23|321s68
+84i7 Year{48I12} 23|322r7
+85i7 Month{49I12} 23|323r7
+86i7 Day{50I12} 23|324r7
+222I9 Time_Rep<long_long_integer>
+X 4 a-calfor.ads
+24K22*Formatting 223e28 24|8w19 517r27
+176V13*Image{string} 24|517s38
+X 8 a-except.ads
+48K13*Exceptions 335e19 23|9w18 350r34 24|199r14 461r15
+57R9*Exception_Occurrence 311e14 23|350r45
+66V13*Exception_Name{string} 24|519s14
+88V13*Exception_Message{string} 24|520s14
+117U14*Save_Occurrence 24|199s25
+118r7 Target{57R9} 24|200r13
+119r7 Source{57R9} 24|201r13
+X 11 a-stream.ads
+36K13*Streams 87e16 24|7w10 98r44
+42M9*Stream_Element
+54A9*Stream_Element_Array(42M9)<44I9> 24|98r52
+X 12 a-string.ads
+16K13*Strings 35e16 23|343r25 24|3r10 4r10 6w10 13r12 39r31 40r13 53r14 57r27
+. 63r51
+31n32*Outside{31E9} 24|57r35
+X 13 a-strfix.ads
+43K21*Fixed 596e22 24|3w18 53r22 63r59
+143V13*Index{natural} 24|63s65
+144a7 Source{string} 24|64r16
+145a7 Pattern{string} 24|65r16
+241U14*Find_Token 24|53s28
+242a7 Source{string} 24|54r13
+243a7 Set{14|46A9} 24|55r13
+244i7 From{positive} 24|56r13
+245e7 Test{12|31E9} 24|57r13
+246i7 First{positive} 24|58r13
+247i7 Last{natural} 24|59r13
+X 14 a-strmap.ads
+38K21*Maps 411e21 24|4w18 39r39 40r21
+46A9*Character_Set<137A9> 24|39r44
+98V13*To_Set{46A9} 24|40s26
+137A9 Character_Set_Internal(boolean)<character>
+X 15 a-strunb.ads
+82K21*Unbounded 758e26 23|343r33 24|13r20
+87R9*Unbounded_String<9|43R9> 741e14 23|343r43
+103V13*To_Unbounded_String{87R9} 24|68s49 71s49 402s46 403s46 422s38 426s38
+. 500s27
+116V13*To_String{string} 24|320s12 321s12 351s13 354s23 373s8 382s8 709s11
+X 17 a-taside.ads
+45K13*Task_Identification 104e28 24|5w10 618r15 623r14
+53P9*Task_Id<63|109P9>
+58V14*"="{boolean} 24|623s47
+65V13*Current_Task{53P9} 24|623s34
+X 18 a-taster.ads
+19K13*Task_Termination 39e25 23|2w10 138r28 349r34 24|437r28 526r11
+24P9*Termination_Handler 23|138r45 349r51 24|437r45
+33U14*Set_Specific_Handler 24|526s28
+34p7 T{17|53P9} 24|527r10
+35p7 Handler{24P9} 24|528r10
+X 20 a-uncdea.ads
+17+9 Object 23|281r7
+18P9 Name(17+9) 23|280r7
+20u15*Unchecked_Deallocation 23|8w18 279r30
+X 21 agnostic_io.ads
+17K9*Agnostic_IO 68e16 23|6w6 232r22 24|124r17 135r30 145r32 465r24
+21h9*Root_Channel_Type
+29E9*Read_Error_Kind 53e25 23|232r34 24|126r26 465r36
+43n7*No_Error{29E9} 24|135r42 145r44
+X 22 asterisk.ads
+4K9*Asterisk 33e13 23|14r9 356r5 24|11r14 721r5
+14e4 Line_Feed{character} 24|24r30
+15a4 CRLF{string} 24|40r34 99r45 99r52 130r43 517r74
+17A9 Unbounded_String_Array(15|87R9)<integer> 23|273r16 274r16 292r16 293r16
+22W19 Critical_Section 31e24 23|341r28
+25Y13 Acquire 24|602s34
+26U17 Release 24|604s34
+X 23 asterisk-ami.ads
+14K18*AMI 22|4k9 23|272E9 356l14 356e17 24|11b23 721l14 721t17
+38X4*AMI_Error 24|470r16 494r16 507r16 554r19 560r19 625r16
+45X4*AMI_Event_Loop_Terminated_Error 24|513r16
+48R9*Message_Type 48d23 62r27 68r21 79r20 88r20 210r48 222r22 272c9 275e14
+. 277r34 281r17 283r27 24|49r26 343r21 371r20 380r20 548r36 616r48 676r33
+48i23 Header_Count{natural} 272r23 273r45 274r45 284m7 24|350r33
+62r4*No_Response{48R9} 283c4 24|552r30 630r17 673r17
+67V13*Get_Header{string} 68>7 69>7 70>7 24|154s16 157s28 164s19 165s19 168s19
+. 342b13 364l8 364t18 558s16 563s17
+68r7 Message{48R9} 24|343b7 350r25 351r24 354r34
+69a7 Name{string} 24|344b7 351r50
+70i7 Instance{positive} 24|345b7 353r16
+78V13*Get_Field{string} 79>7 80>7 24|370b13
+79r7 Message{48R9} 24|373r19
+80i7 Index{positive} 24|373r35
+87V13*Get_Value{string} 88>7 89>7 24|379b13
+88r7 Message{48R9} 24|382r19
+89i7 Index{positive} 24|382r35
+93R9*Action_Type 93d22 102r23 111r23 201r23 209r24 291c9 298e14 24|302r19
+. 389r22 412r23 466r24 577r23 596r23 615r24
+93i22 Header_Count{natural} 291r22 292r45 293r45 24|324r28 394r39 399r37
+. 418r25
+101U14*Set_Header 102=7 103>7 104>7 24|388b14 405l8 405t18 543s7 544s7 545s7
+. 584s7
+102r7 Action{93R9} 24|389b7 394r10 394r32 396r30 399r30 402m7 402r7 402r22
+. 403m7 403r7 403r22 404m7 404r30
+103a7 Field{string} 24|390b7 397r21 402r67
+104a7 Value{string} 24|391b7 397r35 403r67
+110U14*Set_Header_At 111=7 112>7 113>7 114>7 24|411b14 429l8 429t21
+111r7 Action{93R9} 24|412b7 418r18 422m13 422r13 426m13 426r13
+112i7 Index{positive} 24|413b7 418r10 422r28 426r28
+113a7 Field{string} 24|414b7 421r13 422r59
+114a7 Value{string} 24|415b7 425r13 426r59
+125H9*Client_Type 134r37 136p14 137r24 152p13 152r34 158p14 159r25 190p14
+. 190r36 199p14 200r23 207p13 208r24 219p14 220r22 229p14 230r22 234p13 234r37
+. 241p13 242r17 247p13 247r40 256p13 257r17 327r36 334c9 354e14 24|110r40
+. 436r24 447r34 455r25 576r36 595r23 614r24 692r37 700r17 707r40 718r17
+134P9*Client_Access(125R9) 24|84r47 103r23
+136U14*Set_Event_Loop_Termination_Handler 137=7 138>7 24|435b14 441l8 441t42
+137r7 Self{125R9} 24|436b7 440m7
+138p7 Handler{18|24P9} 24|437b7 440r35
+147V13*Inet_Addr=148:27{26|521R9}
+147a24 Image{string}
+152V13*To_Socket{26|413I9} 152>24 24|447b13
+152r24 Self{125R9} 24|448r8
+158U14*Login 159=7 160>7 161>7 163>7 164>7 24|454b14 570l8 570t13
+159r7 Self{125R9} 24|455b7 469r10 471r57 475m7 485r24 495r21 498m7 498r7
+. 500m7 501m10 501r10 506r14 508r21 512r10 515r21 517r45 519r33 520r33 522m10
+. 522r10 522m43 527r21 528r21 530m10 530r10 540m10 540r10 549m12 549r12 555r24
+. 561r24 568m7
+160r7 Address{26|521R9} 24|456b7 477r20
+161i7 Port{26|496I9} 24|457b7 478r20
+163a7 Username{string} 24|458b7 544r45
+164a7 Secret{string} 24|459b7 545r45
+190U14*Logoff 190=22 24|576b14 588l8 588t14
+190r22 Self{125R9} 24|576b22 582m7 585m7 585r7
+199U14*Send_Action 200=7 201=7 24|585s12 594b14 609l8 609t19 636s12
+200r7 Self{125R9} 24|595b7 601r10 602m10 602r10 603m10 603r10 604m10 604r10
+201r7 Action{93R9} 24|596b7 598r63
+207V13*Send_Action{48R9} 208=7 209=7 210>7 24|549s17 613b13 686l8 686t19
+208r7 Self{125R9} 24|614b7 623r49 628r13 633m7 633r7 636m7 636r7 643m10 643r10
+. 650m10 650r10
+209r7 Action{93R9} 24|615b7 633m35 633r35 634m7 636m25 643r33 650r38 668m7
+210o7 Timeout{duration} 24|616b7 639r16
+219U14*Event_Callback 220=7 221>7 222>7 24|156R30
+220r7 Self{125R9}
+221a7 Name{string} 24|157r19
+222r7 Event{48R9} 24|158r19
+227E9*Cause_Of_Disconnection 227e78 231r22
+227n36*Abnormal_Disconnection{227E9} 24|142r32
+227n60*Deliberate_Logoff{227E9} 24|140r32
+229x14*Client_Disconnection_Callback 230=7 231>7 232>7 24|138R30
+230r7 Self{125R9}
+231e7 Cause{227E9} 24|139r19
+232e7 Error{21|29E9} 24|144r19
+234V13*Is_Connected{boolean} 234>27 24|692b13
+234r27 Self{125R9} 24|693r8
+241V13*Get_Server_Address{26|594R9} 242>7 24|699b13
+242r7 Self{125R9} 24|701r8
+247V13*Get_AMI_Version{string} 247>30 24|707b13
+247r30 Self{125R9} 24|708r11 709r22
+252i4*Never_Disconnected{2|42I9} 321c4 346r51 24|568r36
+256V13*Get_Disconnection_Time{2|42I9} 257>7 24|717b13
+257r7 Self{125R9} 24|719r8
+273a7*Fields{22|17A9} 24|68m25 351r32 373r27
+274a7*Values{22|17A9} 24|71m25 354r42 382r27
+277P9 Message_Access(48R9) 280r17 311r44 312r45 314r27 24|37r28 104r23 267r25
+. 279r45 620r22
+279U14 Free[20|20] 24|160s16 196s10 285s13 681s13
+287I12 Action_ID_Range{natural} 289r35 289r55 303r34 304r37 319r13 24|132r25
+. 167r29 218r34 219r35 230r37 308r28
+289A9 Action_ID_Array(287I12)<integer> 307r28
+292a7*Fields{22|17A9} 24|320r30 402m14 422m20
+293a7*Values{22|17A9} 24|321r30 403m14 426m20
+295i7*Header_Index{positive} 24|394r17 396r37 402r29 403r29 404m14 404r37
+296b7*Wants_Response{boolean} 24|307r20 634m14 668m14
+297i7*ID{natural} 24|308r58 633m42 643r40 650m45
+300W19 Action_ID_Manager 306E7 308l8 308e25 353r26 24|212b19 254l8 254t25
+301U17 Initialize 24|240b17 245l11 245t21 540s26
+302V16 Index_Position{natural} 24|251b16 530s26
+303Y13 Acquire_ID 303<25 24|218b13 224l11 224t21 633s23
+303i25 ID{287I12} 24|222m10
+304U17 Release_ID 304>29 24|230b17 234l11 234t21 243s13 650s26
+304i29 ID{287I12} 24|230b29 233r45
+306i7 Next_Free_ID_Index{natural} 24|219r14 222r28 223r10 223r32 232r10 232r32
+. 233r22 252r11
+307a7 Action_IDs{289A9} 24|222r16 233r10 242r20
+310W19 Response_Event_Type 314E8 316l8 316e27 319r33 24|260b19 292l8 292t27
+311Y13 Await_Response 311<29 24|266b13 273l11 273t25 643s44
+311p29 Response{277P9} 24|270m10
+312U17 Set_Response 312>31 24|171s30 279b17 290l11 290t23
+312p31 Response{277P9} 24|279b31 288r30
+314p8 Stored_Response{277P9} 24|270r30 271r10 281r13 285r19 288r10
+315b8 Response_Arrived{boolean} 24|267r46 272r10 289r10
+318A9 Response_Event_Array(310W19)<integer> 352r26
+326T14 Event_Loop_Type 328l8 328e23 330r37 348r30 24|96b14 206l8 206t23
+327Y13 Start 327=20 24|110b17 116l14 116t19 522s26
+327r20 Client{125R9} 24|111m30 111r30 522r33
+330P9 Event_Loop_Access(326T14)
+335r7*Channel{29|15R9} 24|87r21 88m21 128m60 448r13 469r15 498m12 501m15
+. 506r19 601r15 603m15 628r18 693r13 708r16
+340r7*Server_Address{26|594R9} 24|471r62 475m12 485r29 495r26 508r26 515r26
+. 555r29 561r29 701r13
+341w7*Socket_Write_Mutex{22|22W19} 24|602m15 604m15
+343r7*AMI_Version{15|87R9} 24|500m12 709r27
+345b7*Deliberate_Logoff{boolean} 24|139r46 144r46 582m12
+346i7*Disconnect_Timestamp{2|42I9} 24|86m18 517r50 568m12 719r13
+348t7*Event_Loop{326T14} 24|512r15 522m15 527r26 623r54
+349p7*Termination_Handler{18|24P9} 24|440m12 528r26
+350r7*Event_Loop_Exception{8|57R9} 24|200m37 519r38 520r38
+352a7*Action_Responses{318A9} 24|170m30 643m15
+353w7*Action_IDs{300W19} 24|530m15 540m15 633m12 650m15
+X 24 asterisk-ami.adb
+19V13 Count_Lines{natural} 19b13 19>26 29l8 29t19 44s40
+19a26 Source{string} 23r20 24r13
+20i7 Count{natural} 25m13 25r22 28r14
+23i11 Index{integer} 24r21
+35U14 Form_AMI_Message 35b14 36>7 37<7 78l8 78t24 152s13
+36a7 Data{string} 44r53 54r23 62r47
+37p7 Message_Acc{23|277P9} 49m7 68r13 71r13
+39a7 CRLF_Set{14|46A9} 55r23
+44i7 Line_Count{natural} 49r56 51r31
+45i7 Line_Start{natural} 56r23 58m23 62r53 69r29 75m10
+46i7 Line_End{natural} 59m23 62r67 72r48 75r24
+51i11 Line_Number{integer} 68r33 71r33
+62a13 Single_Line{string} 64r27 69r16 72r16
+63i13 Space_Index{natural} 69r43 72r29
+84U14 Clean_Up_Client 84b14 84>31 90l8 90t23 136s16 197s10
+84p31 Client_Acc{23|134P9} 86r7 87r10 88r10
+98a7 Double_CRLF_Delimiter{11|54A9} 129r29
+103p7 Parent_Client{23|134P9} 111m13 128r46 136r33 138r16 139r32 144r32 156r16
+. 170r16 197r27 200r23
+104p7 Message_Acc{23|277P9} 152m44 152r44 154r28 157r40 158r28 160m22 160r22
+. 164r31 165r31 168r31 171r44 196m16 196r16
+107L9 Reset_Event_Loop 149r21
+110r24 Client{23|125R9}
+121l7 Indefinite 192l16 192e26
+126e13 Read_Error{21|29E9} 130m29 130r29 135r16 147r32
+128a13 Socket_Data=130:41{string} 152r31
+132i13 Action_ID{23|287I12} 167m16 171r19
+195r12 Error{8|57R9} 201r23
+218i25 ID{23|287I12}
+242i14 ID{integer} 243r25
+267p10 Response{23|277P9}
+301V13 Concatenate_Headers{string} 301b13 302>7 336l8 336t27 598s42
+302r7 Action{23|93R9} 307r13 308r51 320r23 321r23 324r21
+304a7 CRLF{string} 308r64 321r48
+306a7 Action_ID_Header{string} 335r33
+312i7 Index{positive} 320r38 321r38 324r13 327m13 327r22
+318V16 Concatenate_Lines{string} 318b16 318>35 328s20 330l11 330t28 335s14
+318a35 Previous_Lines{string} 325r20 328r39
+319a10 Current_Line=321:46{string} 325r37 328r56
+347i7 Instance_Count{positive} 353r27 356m16 356r34
+350i11 Index{integer} 351r40 354r50
+463i7 Socket{26|413I9} 480m22 484r24 498r32
+464e7 Connect_Result{26|450E9} 487m24 487r24 490m13 493r10
+465e7 Read_Error{21|29E9} 501m34 501r34
+466r7 Action_Login{23|93R9} 543m19 543r19 544m19 544r19 545m19 545r19 549m30
+. 549r30
+548r10 Login_Response{23|48R9} 552r13 558r28 563r29
+577r7 Action_Logoff{23|93R9} 584m25 584r25 585m25 585r25
+598a7 Action_String{string} 603r35
+620p7 Response_Acc{23|277P9} 640m10 643m60 643r60 672r10 676r49 681m19 681r19
+676r13 Response{23|48R9} 682r20
+X 25 gnat.ads
+34K9*GNAT 23|4r6 147r50 148r14 152r54 160r25 161r25 242r37 332r8 24|447r54
+. 456r25 457r25 463r24 700r37 25|57e9
+X 26 g-socket.ads
+56K14*Sockets 23|4w11 147r55 148r19 152r59 160r30 161r30 242r42 332r13 24|447r59
+. 456r30 457r30 463r29 700r42 26|1576e17
+413I9*Socket_Type<integer> 23|152r67 24|447r67 463r37
+445O12*Timeval_Duration{duration}
+447O12*Selector_Duration{445O12}
+450E9*Selector_Status 24|464r24 26|450e57
+450n29*Completed{450E9} 24|493r28
+450n49*Aborted{450E9} 24|490r31
+457X4*Socket_Error 24|489r15
+473n25*Family_Inet{473E9} 23|340r44 24|476r20
+496I9*Port_Type<integer> 23|161r38 24|457r38
+521R9*Inet_Addr_Type 23|147r63 160r38 24|456r38 26|530e14
+594R9*Sock_Addr_Type 23|242r50 340r28 24|700r50 26|604e14
+599r13*Addr{521R9} 24|477m10
+600i13*Port{496I9} 24|478m10
+610r4*No_Sock_Addr{594R9} 23|340r60
+624V13*Image{string} 24|471s50 495s14 508s14 515s14 555s17 561s17
+628V13*Inet_Addr{521R9} 23|148r27
+1102U14*Create_Socket 24|480s7
+1159U14*Connect_Socket 24|483s10
+1160i7 Socket{413I9} 24|484r13
+1161r7 Server{594R9} 24|485r13
+1162o7 Timeout{447O12} 24|486r13
+1164e7 Status{450E9} 24|487r13
+X 29 socket_aio.ads
+8K9*Socket_AIO 23|11w14 335r17 337r31 24|99r9 29|105e15
+13n7*Carriage_Return_Line_Feed{10E9} 23|337r42
+15R9*Socket_Channel_Type<21|21R9> 23|335r28 29|103e14
+21U14*Set_Socket 24|498s20
+25V13*To_Socket{26|413I9} 24|448s21
+28U14*Close 24|88s29
+30V13*Is_Connected{boolean} 24|87s29 469s23 506s27 601s23 628s26 693s21 708s24
+37U25*Write_Line<21|25p14> 24|603s23
+47V24*Read_Line{string}<21|64p13> 24|501s23
+51V13*To_Stream_Element_Array{11|54A9} 24|99s20
+55V13*Read{string} 24|128s68
+57a7 Delimiter{11|54A9} 24|129r16
+58e7 Error{21|29E9} 24|130r16
+X 30 system.ads
+67M9*Address
+X 43 s-memory.ads
+53V13*Alloc{30|67M9} 103i<c,__gnat_malloc>22
+68U14*Free 104i<c,__gnat_free>22
+76V13*Realloc{30|67M9} 105i<c,__gnat_realloc>22
+X 52 s-stausa.ads
+208U14*Initialize 209i<c,__gnat_stack_usage_initialize>22
+273U14*Output_Results 277i<c,__gnat_stack_usage_output_results>22
+X 54 s-stalib.adb
+93U14 Break_Start 94i<c,__gnat_break_start>22
+X 63 s-taskin.ads
+109P9*Task_Id(107R9)
+
