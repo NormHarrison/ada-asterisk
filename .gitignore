@@ -1,2 +1,7 @@
-*.stderr
+*.o
+*.so
+*.a
+*.ali
+*.bexch
 *.stdout
+*.stderr
