@@ -3,5 +3,6 @@
 *.a
 *.ali
 *.bexch
+*.lexch
 *.stdout
 *.stderr

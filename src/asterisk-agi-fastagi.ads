@@ -20,7 +20,7 @@ package Asterisk.AGI.FastAGI is
    -- Session_Type primitives --
    -----------------------------
 
-   function To_Socket (Self : in Session_Type) return GNAT.Sockets.Socket_Type
+   function Get_Socket (Self : in Session_Type) return GNAT.Sockets.Socket_Type
      with Inline;
    --  Returns the underlying socket of the session, for use with
    --  subprograms from the GNAT.Sockets package (for example, setting
@@ -65,24 +65,20 @@ package Asterisk.AGI.FastAGI is
    -- Server_Type subprograms --
    -----------------------------
 
-   function Inet_Addr (Image : in String) return GNAT.Sockets.Inet_Addr_Type
-     renames GNAT.Sockets.Inet_Addr;
+   Default_FastAGI_Port : constant := 4573;
 
    procedure Create_Server
      (Server           : in out Server_Type;
-      Address          : in     GNAT.Sockets.Inet_Addr_Type;
-      Port             : in     GNAT.Sockets.Port_Type := 4573;
-      Queue_Length     : in     Natural                := 15;
-      Do_Reuse_Address : in     Boolean                := True);
+      Address          : in     GNAT.Sockets.Sock_Addr_Type;
+      Queue_Length     : in     Natural := 15;
+      Do_Reuse_Address : in     Boolean := False);
    --  Initializes a new FastAGI `Server_Type` instance, binding it to the
    --  specified `Address` and `Port` and then listening for connections.
-   --  The `Family` discriminant of `Address` must match the value specified
-   --  for the `Address_Family` discriminant of the `Server_Type` instance.
-   --  By default they are set to `Family_Inet` (IPv4). `Queue_Length` sets
-   --  the maximum number of connections that may pend on the socket before
-   --  any additional ones get declined. `Do_Reuse_Address` allows a previously
-   --  used socket address to be re-binded to (helps prevent socket error
-   --  "[98] Address already in use" during quick restarts of the server).
+   --  `Queue_Length` sets the maximum number of connections that may pend on
+   --  the socket before any additional ones get declined. `Do_Reuse_Address`
+   --  allows a previously used socket address to be re-binded to (helps
+   --  prevent socket error "[98] Address already in use" during quick
+   --  restarts of the server).
 
    procedure Accept_Connection
      (Server  : in out Server_Type;
@@ -100,11 +96,14 @@ package Asterisk.AGI.FastAGI is
    --  Closes an active `Server_Type` instance, preventing new inbound
    --  connections. Does nothing if the server hasn't been created yet.
 
-   function Get_Bind_Address
-     (Server : in Server_Type) return GNAT.Sockets.Sock_Addr_Type with Inline;
-   --  Returns the full socket address to which the server's socket was bound
-   --  to upon invoking `Create_Server`. Useful for when the address and/or
-   --  port were set dynamically.
+   function Is_Listening (Server : in Server_Type) return Boolean;
+
+   function Get_Bound_Port
+     (Server : in Server_Type) return GNAT.Sockets.Port_Type with Inline;
+   --  Returns the port to which the server's socket was bound
+   --  to upon invoking `Create_Server`. Useful for when the port was
+   --  set dynamically. Returns `GNAT.Sockets.No_Port` when
+   --  the server isn't currently listening for connections.
 
    ---------------------------
    -- Start of Private part --
@@ -128,8 +127,9 @@ private
    type Server_Type
      (Address_Family : GNAT.Sockets.Family_Type := GNAT.Sockets.Family_Inet)
    is record
-      Socket  : GNAT.Sockets.Socket_Type := GNAT.Sockets.No_Socket;
-      Address : GNAT.Sockets.Sock_Addr_Type (Address_Family);
+      Socket    : GNAT.Sockets.Socket_Type := GNAT.Sockets.No_Socket;
+      Port      : GNAT.Sockets.Port_Type   := GNAT.Sockets.No_Port;
+      Listening : Boolean                  := False;
    end record;
 
 end Asterisk.AGI.FastAGI;

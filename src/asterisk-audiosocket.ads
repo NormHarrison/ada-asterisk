@@ -63,15 +63,21 @@ package Asterisk.AudioSocket is
    type Server_Type is limited private;
 
    procedure Create_Server
-     (Server     : in out Server_Type;
-      Address    : in     GNAT.Sockets.Sock_Addr_Type;
-      Queue_Size : in     Natural := 15);
+     (Server           : in out Server_Type;
+      Address          : in     GNAT.Sockets.Sock_Addr_Type;
+      Queue_Size       : in     Natural := 15;
+      Do_Reuse_Address : in     Boolean := False);
 
    procedure Accept_Connection
      (Server     : in     Server_Type;
       Connection : in out Connection_Type);
 
-   procedure Close_Server (Server : in Server_Type);
+   procedure Close_Server (Server : in out Server_Type);
+
+   function Is_Listening (Server : in Server_Type) return Boolean;
+
+   function Get_Bound_Port (Server : in Server_Type)
+     return GNAT.Sockets.Port_Type;
 
    function Get_Socket (Server : in Server_Type) return GNAT.Sockets.Socket_Type;
 
@@ -95,7 +101,9 @@ private
    end record;
 
    type Server_Type is record
-      Socket : GNAT.Sockets.Socket_Type;
+      Socket    : GNAT.Sockets.Socket_Type := GNAT.Sockets.No_Socket;
+      Port      : GNAT.Sockets.Port_Type   := GNAT.Sockets.No_Port;
+      Listening : Boolean                  := False;
    end record;
 
    --  Underlying message codes.

@@ -1,4 +1,4 @@
-with "./deps/ada_agnostic_io.gpr";
+with "./deps/agnostic_io/ada_agnostic_io.gpr";
 
 
 library project Ada_Asterisk is

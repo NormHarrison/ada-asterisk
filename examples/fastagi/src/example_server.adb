@@ -7,6 +7,16 @@ with Asterisk.AGI.FastAGI;
 
 procedure Example_Server is
 
+   Bind_Address : constant GNAT.Sockets.Sock_Addr_Type :=
+     (Family => GNAT.Sockets.Family_Inet,
+      Port   => Asterisk.AGI.FastAGI.Default_FastAGI_Port,
+      Addr   => (Family => GNAT.Sockets.Family_Inet,
+                 Sin_V4 => (127, 0, 0, 1)));
+
+   -----------------------
+   -- Handle_Connection --
+   -----------------------
+
    procedure Handle_Connection
      (AGI : in out Asterisk.AGI.FastAGI.Session_Type)
    is
@@ -48,16 +58,12 @@ procedure Example_Server is
       Supress_Hang_Up_Exceptions => True);
 
 begin
-   --  Create the base server, binding it to an interface
-   --  and then listening for connections.
-   Asterisk.AGI.FastAGI.Create_Server
-     (Server  => AGI_Server,
-      Port    => 1234,
-      Address => (Family => GNAT.Sockets.Family_Inet,
-                  Sin_V4 => (127, 0, 0, 1)));
+   --  Create the base server, which binds it to an address
+   --  and then starts listening for connections.
+   Asterisk.AGI.FastAGI.Create_Server (AGI_Server, Bind_Address);
 
-   Put_Line ("Listening for connections on: " & GNAT.Sockets.Image
-     (Asterisk.AGI.FastAGI.Get_Bind_Address (AGI_Server)));
+   Put_Line ("Listening for connections on: "
+     & GNAT.Sockets.Image (Bind_Address));
 
    --  Accept connections forever.
    Indefinite : loop

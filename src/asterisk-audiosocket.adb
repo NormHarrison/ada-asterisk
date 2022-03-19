@@ -188,20 +188,36 @@ package body Asterisk.AudioSocket is
    -------------------
 
    procedure Create_Server
-     (Server     : in out Server_Type;
-      Address    : in     GNAT.Sockets.Sock_Addr_Type;
-      Queue_Size : in     Natural := 15)
+     (Server           : in out Server_Type;
+      Address          : in     GNAT.Sockets.Sock_Addr_Type;
+      Queue_Size       : in     Natural := 15;
+      Do_Reuse_Address : in     Boolean := False)
    is
       use GNAT.Sockets;
 
    begin
+      if Server.Listening then
+         Close_Server (Server);
+      end if;
+
+     if Do_Reuse_Address then
+        Set_Socket_Option
+          (Socket => Server.Socket,
+           Level  => Socket_Level,
+           Option => (Name    => Reuse_Address,
+                      Enabled => True));
+     end if;
+
       Create_Socket
         (Socket => Server.Socket,
          Family => Address.Family,
          Mode   => Socket_Stream);
 
       Bind_Socket (Server.Socket, Address);
+      Server.Port := GNAT.Sockets.Get_Socket_Name (Server.Socket).Port;
+
       Listen_Socket (Server.Socket, Queue_Size);
+      Server.Listening := True;
    end Create_Server;
 
    -----------------------
@@ -239,10 +255,30 @@ package body Asterisk.AudioSocket is
    -- Close_Server --
    ------------------
 
-   procedure Close_Server (Server : in Server_Type) is
+   procedure Close_Server (Server : in out Server_Type) is
    begin
-      GNAT.Sockets.Close_Socket (Server.Socket);
+      if Server.Listening then
+         GNAT.Sockets.Close_Socket (Server.Socket);
+         Server.Socket    := GNAT.Sockets.No_Socket;
+         Server.Port      := GNAT.Sockets.No_Port;
+         Server.Listening := False;
+      end if;
    end Close_Server;
+
+   ------------------
+   -- Is_Listening --
+   ------------------
+
+   function Is_Listening (Server : in Server_Type) return Boolean
+   is (Server.Listening);
+
+   --------------------
+   -- Get_Bound_Port --
+   --------------------
+
+   function Get_Bound_Port (Server : in Server_Type)
+     return GNAT.Sockets.Port_Type
+   is (Server.Port);
 
    ----------------
    -- Get_Socket --
