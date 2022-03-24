@@ -146,6 +146,7 @@ package body Asterisk.AMI is
                             else
                                Read_Error));
 
+               accept Await_Cleanup;
                goto Reset_Event_Loop;
             end if;
 
@@ -428,23 +429,11 @@ package body Asterisk.AMI is
       end if;
    end Set_Header_At;
 
-   ----------------------------------------
-   -- Set_Event_Loop_Termination_Handler --
-   ----------------------------------------
+   ----------------
+   -- Get_Socket --
+   ----------------
 
-   procedure Set_Event_Loop_Termination_Handler
-     (Self    : in out Client_Type;
-      Handler : in     Ada.Task_Termination.Termination_Handler)
-   is
-   begin
-      Self.Termination_Handler := Handler;
-   end Set_Event_Loop_Termination_Handler;
-
-   ---------------
-   -- To_Socket --
-   ---------------
-
-   function To_Socket (Self : in Client_Type) return GNAT.Sockets.Socket_Type
+   function Get_Socket (Self : in Client_Type) return GNAT.Sockets.Socket_Type
    is (Self.Channel.To_Socket);
 
    -----------
@@ -453,12 +442,13 @@ package body Asterisk.AMI is
 
    procedure Login
      (Self     : in out Client_Type;
-      Address  : in     GNAT.Sockets.Inet_Addr_Type;
-      Port     : in     GNAT.Sockets.Port_Type;
+      Address  : in     GNAT.Sockets.Sock_Addr_Type;
       Username : in     String;
-      Secret   : in     String)
+      Secret   : in     String;
+      Timeout  : in     Duration := 5.0)
    is
       use Ada.Exceptions;
+      use type Agnostic_IO.Read_Error_Kind;
 
       Socket         : GNAT.Sockets.Socket_Type;
       Connect_Result : Selector_Status;
@@ -467,32 +457,29 @@ package body Asterisk.AMI is
 
    begin
       if Self.Channel.Is_Connected then
-         raise AMI_Error with "Login was invoked while client was already "
-           & "connected to the AMI server at " & Image (Self.Server_Address);
-         --  ! Consider just returning silently.
+         Self.Logoff;
       end if;
 
-      Self.Server_Address :=
-        (Family => Family_Inet,
-         Addr   => Address,
-         Port   => Port);
-
-      Create_Socket (Socket);
+      GNAT.Sockets.Create_Socket
+        (Socket => Socket,
+         Family => Self.Address_Family,
+         Mode   => GNAT.Sockets.Socket_Stream);
 
       begin
-         Connect_Socket
+         GNAT.Sockets.Connect_Socket
            (Socket  => Socket,
             Server  => Self.Server_Address,
-            Timeout => 5.0,
+            Timeout => Timeout,
             Status  => Connect_Result);
+
       exception
-         when Socket_Error =>
-            Connect_Result := Aborted;
+         when GNAT.Sockets.Socket_Error =>
+            Connect_Result := GNAT.Sockets.Aborted;
       end;
 
-      if Connect_Result /= Completed then
+      if Connect_Result /= GNAT.Sockets.Completed then
          raise AMI_Error with "No response from host '"
-           & Image (Self.Server_Address) & "' during login attempt.";
+           & Image (Address) & "' during login attempt.";
       end if;
 
       Self.Channel.Set_Socket (Socket);
@@ -500,8 +487,10 @@ package body Asterisk.AMI is
       Self.AMI_Version := To_Unbounded_String
         (Self.Channel.Read_Line (Read_Error));
 
-      --  ! We aren't currently handling the more specific errors
-      --    that `Read_Line` can return.
+      if Read_Error /= Agnostic_IO.No_Error then
+         raise AMI_Error with "Error while reading version information: "
+           & Agnostic_IO.Read_Error_Kind'Image (Read_Error);
+      end if;
 
       if not Self.Channel.Is_Connected then
          raise AMI_Error with "Host at '"
@@ -522,10 +511,6 @@ package body Asterisk.AMI is
          Self.Event_Loop.Start (Client => Self);
          --  See note in `Event_Loop_Type` `accept Start` body.
       end if;
-
-      Ada.Task_Termination.Set_Specific_Handler
-        (T       => Self.Event_Loop'Identity,
-         Handler => Self.Termination_Handler);
 
       if Self.Action_IDs.Index_Position = 0 then
          --  This is the first time this client is logging in, so intialize
@@ -583,6 +568,8 @@ package body Asterisk.AMI is
 
       Set_Header       (Action_Logoff, "Action", "Logoff");
       Self.Send_Action (Action_Logoff);
+
+      Self.Event_Loop.Await_Cleanup;
       --  The event loop handles closure of the socket from our end.
       --  ! Consider moving the call to `Self.Channel.Close` back here.
    end Logoff;

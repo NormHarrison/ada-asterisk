@@ -122,8 +122,13 @@ package Asterisk.AMI is
    --  `Header_Count` discriminant. If it is larger, the exception
    --  `Constraint_Error` is raised.
 
-   type Client_Type is abstract tagged limited private;
-   --  Represents a TCP connection to an Asterisk server's AMI interface,
+   type Client_Type
+     (Address_Family : GNAT.Sockets.Family_Type)
+   is abstract tagged limited private;
+
+   type Client_Access is access all Client_Type'Class;
+
+   --  Represents a connection to an Asterisk server's AMI interface,
    --  pemitting the sending of actions, receipt of their responses and of
    --  standalone AMI events. This type is meant to be dervived from in order
    --  to receive events via a user provided callback, see `Event_Callback`
@@ -131,46 +136,40 @@ package Asterisk.AMI is
    --  instantiated via a successfull login to an AMI server. Instances of
    --  this type can safely be shared between multiple tasks (threads).
 
-   type Client_Access is access all Client_Type'Class;
+   --------------------------------------------
+   --  NOTE: Handling Exceptions in Subtasks --
+   --------------------------------------------
 
-   procedure Set_Event_Loop_Termination_Handler
-     (Self    : in out Client_Type;
-      Handler : in     Ada.Task_Termination.Termination_Handler);
-   --  Sets the task termination handler that will be invoked when the event
-   --  loop terminates. It is strongly encouraged that this is utilized,
-   --  because if an exception is raised inside the `Event_Callback` primitive,
-   --  the program will keep running without any indication of failure until
-   --  the environment task terminates too. Must be called being invoking
-   --  `Login`, and cannot be changed while the client is connected to an AMI
-   --  server.
+   --  The `Client_Type` utilizes an additional task (thread) to implement the
+   --  event loop. It is strongly encouraged that you setup a task termination
+   --  handler via the functionality provided in the language defined package
+   --  `Ada.Task_Termination`. This is recommended because, if an exception is
+   --  raised inside the `Event_Callback` primitive, the program will keep
+   --  running without any indication of failure until the environment task
+   --  terminates too. Task termination handlers provide a means of getting
+   --  notified when a task terminates and for what reason it did so.
 
-   function Inet_Addr (Image : in String) return GNAT.Sockets.Inet_Addr_Type
-     renames GNAT.Sockets.Inet_Addr;
-   --  Convenience function from `GNAT.Sockets` package for converting an
-   --  IPv4 address string to `GNAT.Sockets.Inet_Addr_Type`.
-
-   function To_Socket (Self : in Client_Type) return GNAT.Sockets.Socket_Type
+   function Get_Socket (Self : in Client_Type) return GNAT.Sockets.Socket_Type
      with Inline;
    --  Returns the underlying socket of the client, for use with
    --  subprograms from the GNAT.Sockets package (for example, setting
    --  or retreiving socket options).
 
+   Default_AMI_Port : constant GNAT.Sockets.Port_Type := 5039;
+
    procedure Login
      (Self     : in out Client_Type;
-      Address  : in     GNAT.Sockets.Inet_Addr_Type;
-      Port     : in     GNAT.Sockets.Port_Type;
-      --  ! Consider changing how the socket address is supplied.
+      Address  : in     GNAT.Sockets.Sock_Addr_Type;
       Username : in     String;
-      Secret   : in     String);
+      Secret   : in     String;
+      Timeout  : in     Duration := 5.0);
    --  Connects a `Client_Type` instance to the specified AMI server using
    --  the supplied credentials. Upon successfull login, the event loop is
    --  started, allowing the client to send actions, receive action responses
-   --  and general AMI events.
-
-   --  ! NOT IMPLEMENTED YET:
-   --  In the scenario that the client is disconnected from the AMI
-   --  server, this procedure may be invoked again to
-   --  re-connect the client.
+   --  and general AMI events. In the scenario that the client is disconnected
+   --  from the AMI server, this procedure may be invoked again to re-connect
+   --  the client. If invoked while the client is already connected to an AMI
+   --  server, the client is first disconnected from the server.
 
    --  ! Consider creating invidiual exceptions for each of the below cases.
 
@@ -191,10 +190,7 @@ package Asterisk.AMI is
    --  Disconnects a `Client_Type` instance from the Asterisk server it's
    --  currently connected to. After a call to this primitive, the client
    --  will no longer be able to send actions, receive actions responses or
-   --  general AMI events.
-
-   --  ! Client instances currently become unusable after their event
-   --    loop it stopped.
+   --  general AMI events until it is reconnected to an AMI server via `Login`.
 
    procedure Send_Action
      (Self   : in out Client_Type;
@@ -325,19 +321,22 @@ private
 
    task type Event_Loop_Type is
       entry Start (Client : in out Client_Type);
+      entry Await_Cleanup;
    end Event_Loop_Type;
 
    type Event_Loop_Access is access Event_Loop_Type;
 
    use GNAT.Sockets;
 
-   type Client_Type is abstract tagged limited record
+   type Client_Type
+     (Address_Family : GNAT.Sockets.Family_Type)
+   is abstract tagged limited record
       Channel : Socket_AIO.Socket_Channel_Type
         (Buffer_Start_Size => 500,
          Line_Ending       => Socket_AIO.Carriage_Return_Line_Feed,
          Recursion_Limit   => 4);
 
-      Server_Address     : Sock_Addr_Type (Family_Inet) := No_Sock_Addr;
+      Server_Address     : Sock_Addr_Type (Address_Family);
       Socket_Write_Mutex : Critical_Section;
 
       AMI_Version : Ada.Strings.Unbounded.Unbounded_String;
