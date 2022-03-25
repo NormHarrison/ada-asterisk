@@ -13,28 +13,6 @@ private with Socket_AIO;
 
 package Asterisk.AMI is
 
-   -----------------
-   -- PLEASE READ --
-   -----------------
-   --  ! THIS MESSAGE NEEDS REVISION:
-   --  The 'Client_Type' of this package makes use of a library level task
-   --  to constantly wait for and accept inbound AMI events from the connected
-   --  Asterisk server. Due to the way Ada implements it's threading, when a
-   --  program makes use of subtasks, and is intended to execute in a
-   --  "run forever" fashion (as is common with many service-providing
-   --  programs), if one of the subtasks or the environment task raise an
-   --  exception, the program will continue to run as if no exception was
-   --  raised and provide no visual indication of the culprit exception.
-
-   --  In order to mitigate this likely-dangerous behavior, it is strongly
-   --  recommended that during development of your program, you utilize the
-   --  Ada defined packages 'Ada.Exceptions', 'Ada.Task_Identification' and
-   --  'Ada.Task_Termination' to create a task termination handler that will
-   --  inform you when your programs task's raise exception and the specific
-   --  exception instance that was raised. An example of a task termination
-   --  handler is provided in "examples/ami/src/ami_client_example.adb".
-   -------------------------------------------------------------------------
-
    AMI_Error : exception;
    --  The exception raised when any known error from this package's
    --  subprograms is encountered (except for client disconnection).
@@ -46,12 +24,6 @@ package Asterisk.AMI is
    --  ! Consider renaming to `AMI_Client_Disconnected_Error`.
 
    type Message_Type (Header_Count : Natural) is private;
-   --  ! Try to make `limited` again? If we do so (make sure we change it in
-   --    the private part too), we can't return values
-   --    of the type from functions, which is rather restrictive...
-   --    Another alternative is returning the access value to the user directly
-   --    and having them free it manually when done.
-   --  ------------------------------------------------------------------------
    --  Represents data received from Asterisk, used when for AMI events and
    --  action responses. While Instances of this type are never manually
    --  initialized by the user, it is an indefinite type, meaning that when
@@ -169,22 +141,24 @@ package Asterisk.AMI is
    --  and general AMI events. In the scenario that the client is disconnected
    --  from the AMI server, this procedure may be invoked again to re-connect
    --  the client. If invoked while the client is already connected to an AMI
-   --  server, the client is first disconnected from the server.
+   --  server, the client is first disconnected from the server it's currently
+   --  logged into.
 
    --  ! Consider creating invidiual exceptions for each of the below cases.
 
    --  Raises 'AMI_ERROR' under the following circumstances:
 
-   --     1. The client is already connected to an AMI server.
+   --     1. The host specified in `Address` was unreachable.
 
-   --     2. The host specified by `Address` was unreachable.
+   --     2. The client wasn't able to read the server's version infomation.
 
-   --     3. The socket was closed while reading the server's version info.
+   --     3. No response was received for the login action before the timeout.
 
-   --     4. No response was received for the login action before the timeout.
+   --     4. The client's event loop has terminated due to a handled
+   --        exception in the event callback.
 
-   --     5. The credentials were incorrect, or some other Asterisk-related
-   --        error occurred.
+   --     5. The login credentials were incorrect, or some other
+   --        Asterisk-related error occurred.
 
    procedure Logoff (Self : in out Client_Type);
    --  Disconnects a `Client_Type` instance from the Asterisk server it's
@@ -222,10 +196,17 @@ package Asterisk.AMI is
 
    type Cause_Of_Disconnection is (Abnormal_Disconnection, Deliberate_Logoff);
 
+   subtype Read_Error_Kind is Agnostic_IO.Read_Error_Kind;
+
    procedure Client_Disconnection_Callback
      (Self  : in out Client_Type;
       Cause : in     Cause_Of_Disconnection;
-      Error : in     Agnostic_IO.Read_Error_Kind) is abstract;
+      Error : in     Read_Error_Kind) is abstract;
+   --  Must be overridden when deriving from `Client_Type`. This primitive
+   --  is invoked whenever the client instance loses its connection to the
+   --  AMI server it was previously logged into. The cause of the disconnection
+   --  is provided in `Cause`, if it was due to a socket error, it is provided
+   --  in `Error`.
 
    function Is_Connected (Self : in Client_Type) return Boolean with Inline;
    --  Returns `True` if `Client` is still connected to the server that was
@@ -237,8 +218,7 @@ package Asterisk.AMI is
    function Get_Server_Address
      (Self : in Client_Type) return GNAT.Sockets.Sock_Addr_Type;
    --  Returns the socket address of the AMI server that the client was last
-   --  connected to. Returns `GNAT.Sockets.No_Sock_Addr` if the client hasn't
-   --  logged into a server yet.
+   --  connected to.
 
    function Get_AMI_Version (Self : in Client_Type) return String with Inline;
    --  Returns the version number that was provided by the currently connected
@@ -255,7 +235,7 @@ package Asterisk.AMI is
    --  the client was disconnected from it's AMI server at. This disconnection
    --  time can be either from a deliberate call to `Logoff`, or due to an
    --  unexpected loss of communication with the server. If a disconnection
-   --  never occurred (the client is still connected), the constant
+   --  hasn't occurred since the last call to `Login`, the value
    --  `Never_Disconnected` is returned.
 
 

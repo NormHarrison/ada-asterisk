@@ -468,7 +468,7 @@ package body Asterisk.AMI is
       begin
          GNAT.Sockets.Connect_Socket
            (Socket  => Socket,
-            Server  => Self.Server_Address,
+            Server  => Address,
             Timeout => Timeout,
             Status  => Connect_Result);
 
@@ -482,6 +482,7 @@ package body Asterisk.AMI is
            & Image (Address) & "' during login attempt.";
       end if;
 
+      Self.Server_Address := Address;
       Self.Channel.Set_Socket (Socket);
 
       Self.AMI_Version := To_Unbounded_String
@@ -490,12 +491,6 @@ package body Asterisk.AMI is
       if Read_Error /= Agnostic_IO.No_Error then
          raise AMI_Error with "Error while reading version information: "
            & Agnostic_IO.Read_Error_Kind'Image (Read_Error);
-      end if;
-
-      if not Self.Channel.Is_Connected then
-         raise AMI_Error with "Host at '"
-           & Image (Self.Server_Address) & "' closed socket "
-           & "unexpectedly during login attempt.";
       end if;
 
       if Self.Event_Loop'Terminated then
