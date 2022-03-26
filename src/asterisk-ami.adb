@@ -460,6 +460,8 @@ package body Asterisk.AMI is
          Self.Logoff;
       end if;
 
+      Self.Deliberate_Logoff := False;
+
       GNAT.Sockets.Create_Socket
         (Socket => Socket,
          Family => Self.Address_Family,
