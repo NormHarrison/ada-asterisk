@@ -41,6 +41,10 @@
 
 ## AMI related:
 
+- The underlying socket inside the socket channel isn't being closed
+when certain exceptions occur in the `Login` procedure (specifically
+when the credentials aren't correct, e.g. the last two `raise` statements).
+
 - Create more specific exceptions.
 
 - Look into replacing the current way of handling responses with
