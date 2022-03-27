@@ -1,3 +1,5 @@
 [submodule "deps/agnostic_io"]
 	path = deps/agnostic_io
 	url = git@github.com:NormHarrison/agnostic_io.git
+[submodule "deps/agnostic_io/"]
+	url = https://github.com/NormHarrison/agnostic_io.git
