@@ -1,12 +1,6 @@
-with Ada.Calendar;
-with Ada.Task_Termination;
-
 with GNAT.Sockets;
 
-with Agnostic_IO;
-
 private with Ada.Unchecked_Deallocation;
-private with Ada.Exceptions;
 
 private with Socket_AIO;
 
@@ -19,9 +13,6 @@ package Asterisk.AMI is
    --  Subprograms that rause this exception, and for what reasons they
    --  do so, have it indicated in their descriptions below.
    --  ! Opt for more specific variations, or use Boolean out parameters?
-
-   AMI_Event_Loop_Terminated_Error : exception;
-   --  ! Consider renaming to `AMI_Client_Disconnected_Error`.
 
    type Message_Type (Header_Count : Natural) is private;
    --  Represents data received from Asterisk, used when for AMI events and
@@ -79,6 +70,8 @@ package Asterisk.AMI is
    --  the amount that the action instance has room for (the `Header_Count`
    --  discriminant of `Action_Type` determines this).
 
+   --  ! Could Pre/Post conditions for these two procedures benefit us?
+
    procedure Set_Header_At
      (Action : in out Action_Type;
       Index  : in     Positive;
@@ -94,9 +87,8 @@ package Asterisk.AMI is
    --  `Header_Count` discriminant. If it is larger, the exception
    --  `Constraint_Error` is raised.
 
-   type Client_Type
-     (Address_Family : GNAT.Sockets.Family_Type)
-   is abstract tagged limited private;
+   type Client_Type (Address_Family : GNAT.Sockets.Family_Type) is
+     tagged limited private;
 
    type Client_Access is access all Client_Type'Class;
 
@@ -107,19 +99,6 @@ package Asterisk.AMI is
    --  near the end of this specification's public part. This type is
    --  instantiated via a successfull login to an AMI server. Instances of
    --  this type can safely be shared between multiple tasks (threads).
-
-   --------------------------------------------
-   --  NOTE: Handling Exceptions in Subtasks --
-   --------------------------------------------
-
-   --  The `Client_Type` utilizes an additional task (thread) to implement the
-   --  event loop. It is strongly encouraged that you setup a task termination
-   --  handler via the functionality provided in the language defined package
-   --  `Ada.Task_Termination`. This is recommended because, if an exception is
-   --  raised inside the `Event_Callback` primitive, the program will keep
-   --  running without any indication of failure until the environment task
-   --  terminates too. Task termination handlers provide a means of getting
-   --  notified when a task terminates and for what reason it did so.
 
    function Get_Socket (Self : in Client_Type) return GNAT.Sockets.Socket_Type
      with Inline;
@@ -160,11 +139,25 @@ package Asterisk.AMI is
    --     5. The login credentials were incorrect, or some other
    --        Asterisk-related error occurred.
 
-   procedure Logoff (Self : in out Client_Type);
-   --  Disconnects a `Client_Type` instance from the Asterisk server it's
-   --  currently connected to. After a call to this primitive, the client
-   --  will no longer be able to send actions, receive actions responses or
-   --  general AMI events until it is reconnected to an AMI server via `Login`.
+   procedure On_Event
+     (Self  : in out Client_Type;
+      Name  : in     String;
+      Event : in     Message_Type) is null;
+   --  To be overridden by the user if needed. This procedure is invoked
+   --  after a call to `Await_Message` if an AMI event arrived from Asterisk.
+   --  If not overridden, events are silently ignored.
+
+   procedure On_Disconnect (Self : in out Client_Type) is null;
+   --  To be overridden by the user if needed. This procedure is invoked if
+   --  the client gets disconnected from the AMI server during a call to
+   --  `Await_Message`. A disconnect can occur because of a deliberate logoff,
+   --  a network issue, or socket closure from the server's end.
+   --  ! Consider forcing user's to override, along with discerning between
+   --    deliberate and accidental disconnects.
+
+   function Await_Message
+     (Self    : in out Client_Type'Class;
+      Timeout : in     Duration := Duration'Last) return Boolean;
 
    procedure Send_Action
      (Self   : in out Client_Type;
@@ -186,27 +179,11 @@ package Asterisk.AMI is
    --  inside it. Attempting to do this will result in the exception `AMI_Error`
    --  being raised.
 
-   procedure Event_Callback
-     (Self  : in out Client_Type;
-      Name  : in     String;
-      Event : in     Message_Type) is null;
-   --  To be overridden by the user if needed. This procedure is invoked in
-   --  a separate task (the client's event loop) whenever an AMI event arrives
-   --  from Asterisk. If not overridden, events are silently ignored.
-
-   type Cause_Of_Disconnection is (Abnormal_Disconnection, Deliberate_Logoff);
-
-   subtype Read_Error_Kind is Agnostic_IO.Read_Error_Kind;
-
-   procedure Client_Disconnection_Callback
-     (Self  : in out Client_Type;
-      Cause : in     Cause_Of_Disconnection;
-      Error : in     Read_Error_Kind) is abstract;
-   --  Must be overridden when deriving from `Client_Type`. This primitive
-   --  is invoked whenever the client instance loses its connection to the
-   --  AMI server it was previously logged into. The cause of the disconnection
-   --  is provided in `Cause`, if it was due to a socket error, it is provided
-   --  in `Error`.
+   procedure Logoff (Self : in out Client_Type);
+   --  Disconnects a `Client_Type` instance from the Asterisk server it's
+   --  currently connected to. After a call to this primitive, the client
+   --  will no longer be able to send actions, receive actions responses or
+   --  general AMI events until it is reconnected to an AMI server via `Login`.
 
    function Is_Connected (Self : in Client_Type) return Boolean with Inline;
    --  Returns `True` if `Client` is still connected to the server that was
@@ -224,19 +201,6 @@ package Asterisk.AMI is
    --  Returns the version number that was provided by the currently connected
    --  Asterisk AMI server during initial login. Returns an empty string if
    --  the client is not currently connected to any server.
-
-   Never_Disconnected : constant Ada.Calendar.Time;
-   --  Used to indicate that a client has not been/was never disconnected
-   --  from it's AMI server.
-
-   function Get_Disconnection_Time
-     (Self : in Client_Type) return Ada.Calendar.Time with Inline;
-   --  Returns an instance of `Ada.Calendar.Time` containing the time that
-   --  the client was disconnected from it's AMI server at. This disconnection
-   --  time can be either from a deliberate call to `Logoff`, or due to an
-   --  unexpected loss of communication with the server. If a disconnection
-   --  hasn't occurred since the last call to `Login`, the value
-   --  `Never_Disconnected` is returned.
 
 
 ---------------------------
@@ -260,17 +224,22 @@ private
      (Header_Count =>  0,
       others       => <>);
 
-   subtype Action_ID_Range is Natural range 1 .. 256;
+   type Action_ID_Range is range 1 .. 256;
+   --  ! Consider including 0 in the above range to use as an
+   --  "invalid" value, or create a subtype compatible with `Natural`.
+   --  Though this would increase the size of the type (not that this matters).
+   --for Action_ID_Range'Size use 8;
 
    type Action_ID_Array is array (Action_ID_Range) of Action_ID_Range;
+   --  ! Make element type `Natural`?
 
    type Action_Type (Header_Count : Natural) is limited record
       Fields : Unbounded_String_Array (1 .. Header_Count);
       Values : Unbounded_String_Array (1 .. Header_Count);
 
-      Header_Index   : Positive := 1;
-      Wants_Response : Boolean  := False;
-      ID             : Natural  := 0;
+      Header_Index   : Positive        := 1;
+      Wants_Response : Boolean         := False;
+      ID             : Action_ID_Range := 1;
    end record;
 
    protected type Action_ID_Manager is
@@ -286,31 +255,19 @@ private
    protected type Response_Event_Type is
       entry Await_Response (Response : out Message_Access);
       procedure Set_Response (Response : in Message_Access);
+      procedure Reset;
    private
        Stored_Response  : Message_Access;
        Response_Arrived : Boolean := False;
    end Response_Event_Type;
 
-   type Response_Event_Array is
-     array (Action_ID_Range) of Response_Event_Type;
-
-   Never_Disconnected : constant Ada.Calendar.Time := Ada.Calendar.Time_Of
-     (Year  => 1970,
-      Month => 1,
-      Day   => 1);
-
-   task type Event_Loop_Type is
-      entry Start (Client : in out Client_Type);
-      entry Await_Cleanup;
-   end Event_Loop_Type;
-
-   type Event_Loop_Access is access Event_Loop_Type;
+   type Response_Event_Array is array (Action_ID_Range) of Response_Event_Type;
 
    use GNAT.Sockets;
 
    type Client_Type
      (Address_Family : GNAT.Sockets.Family_Type)
-   is abstract tagged limited record
+   is tagged limited record
       Channel : Socket_AIO.Socket_Channel_Type
         (Buffer_Start_Size => 500,
          Line_Ending       => Socket_AIO.Carriage_Return_Line_Feed,
@@ -320,13 +277,6 @@ private
       Socket_Write_Mutex : Critical_Section;
 
       AMI_Version : Ada.Strings.Unbounded.Unbounded_String;
-
-      Deliberate_Logoff    : Boolean           := False;
-      Disconnect_Timestamp : Ada.Calendar.Time := Never_Disconnected;
-
-      Event_Loop           : Event_Loop_Type;
-      Termination_Handler  : Ada.Task_Termination.Termination_Handler;
-      Event_Loop_Exception : Ada.Exceptions.Exception_Occurrence;
 
       Action_Responses : Response_Event_Array;
       Action_IDs       : Action_ID_Manager;

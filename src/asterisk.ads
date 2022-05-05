@@ -19,6 +19,10 @@ private
 
    type Message_Extraction_Target is (Key, Value);
 
+   function Find_Pattern
+     (Pattern   : in String;
+      In_String : in String) return Boolean;
+
    protected type Critical_Section is
       --  ! Specialize for IO so declaring two instances of this type
       --    ins't needed for protecting against read and writes separately.

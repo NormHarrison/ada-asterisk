@@ -1,4 +1,3 @@
---  Ada standard libraries
 with Ada.Task_Termination;
 with Ada.Task_Identification;
 with Ada.Exceptions;

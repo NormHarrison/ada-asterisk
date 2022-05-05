@@ -1,4 +1,3 @@
---  Ada standard library
 with Ada.Text_IO; use Ada.Text_IO;
 
 
@@ -18,8 +17,8 @@ package body Exception_Reporter is
            & " terminated with cause: " & Cause_Of_Termination'Image (Cause));
 
          if Cause = Ada.Task_Termination.Unhandled_Exception then
-              Put_Line ("Exception: " & Ada.Exceptions.Exception_Name (X)
-                & " - " & Ada.Exceptions.Exception_Message (X));
+              Put_Line ("Exception: "
+                & Ada.Exceptions.Exception_Information (X));
          end if;
 
       end Handler;

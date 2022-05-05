@@ -2,15 +2,53 @@
 
 with Ada.Strings.Fixed;
 with Ada.Strings.Maps;
-with Ada.Task_Identification;
 with Ada.Strings;
 with Ada.Streams;
-with Ada.Calendar.Formatting;
+
+with Agnostic_IO;
 
 
 package body Asterisk.AMI is
 
    use Ada.Strings.Unbounded;
+
+   CRLF_Delimiter : constant Ada.Streams.Stream_Element_Array :=
+     Socket_AIO.To_Stream_Element_Array (CRLF);
+
+   Double_CRLF_Delimiter : constant Ada.Streams.Stream_Element_Array :=
+     Socket_AIO.To_Stream_Element_Array (CRLF & CRLF);
+
+   ----------------------
+   -- Read_AMI_Message --
+   ----------------------
+
+   function Read_AMI_Message
+      (Channel   : in out Socket_AIO.Socket_Channel_Type;
+       Delimiter : in     Ada.Streams.Stream_Element_Array;
+       Timeout   : in     Duration;
+       Error     :    out Agnostic_IO.Read_Error_Kind) return String
+   is
+   begin
+      Error := Agnostic_IO.No_Error;
+
+      select
+
+         delay Timeout;
+
+      then abort
+
+         declare
+            Socket_Data : constant String := Channel.Read (Delimiter, Error);
+
+         begin
+            return Socket_Data;
+         end;
+
+      end select;
+
+      return "";
+
+   end Read_AMI_Message;
 
    -----------------
    -- Count_Lines --
@@ -28,11 +66,11 @@ package body Asterisk.AMI is
       return Count;
    end Count_Lines;
 
-   ----------------------
-   -- Form_AMI_Message --
-   ----------------------
+   -----------------------
+   -- Parse_AMI_Message --
+   -----------------------
 
-   procedure Form_AMI_Message
+   procedure Parse_AMI_Message
      (Data        : in     String;
       Message_Acc :    out Message_Access)
    is
@@ -75,136 +113,87 @@ package body Asterisk.AMI is
          Line_Start := Line_End;
       end loop;
 
-   end Form_AMI_Message;
+   end Parse_AMI_Message;
 
-   ---------------------
-   -- Clean_Up_Client --
-   ---------------------
+   -------------------
+   -- Await_Message --
+   -------------------
 
-   procedure Clean_Up_Client (Client_Acc : in Client_Access) is
+   function Await_Message
+     (Self    : in out Client_Type'Class;
+      Timeout : in     Duration := Duration'Last) return Boolean
+   is
+      use Agnostic_IO;
+
+      Read_Error : Read_Error_Kind;
+
+      Socket_Data : constant String := Read_AMI_Message
+        (Channel   => Self.Channel,
+         Delimiter => Double_CRLF_Delimiter,
+         Timeout   => Timeout,
+         Error     => Read_Error);
+
+      Message_Acc : Message_Access;
+      Action_ID   : Action_ID_Range;
+
    begin
-      Client_Acc.Disconnect_Timestamp := Ada.Calendar.Clock;
-      if Client_Acc.Channel.Is_Connected then
-         Client_Acc.Channel.Close;
+      if not Self.Channel.Is_Connected then
+         return False;
+
+      elsif Read_Error /= Agnostic_IO.No_Error then
+
+         Self.On_Disconnect;
+         --  ! Eventually pass in `Read_Error`?
+         return False;
+
+      elsif Socket_Data'Length = 0 then
+
+         return False;
+
       end if;
-   end Clean_Up_Client;
 
-   ---------------------
-   -- Event_Loop_Type --
-   ---------------------
+      Parse_AMI_Message (Socket_Data, Message_Acc);
 
-   task body Event_Loop_Type is
+      if Get_Header (Message_Acc.all, "Event") /= "" then
 
-      Double_CRLF_Delimiter : constant Ada.Streams.Stream_Element_Array :=
-        Socket_AIO.To_Stream_Element_Array (CRLF & CRLF);
-      --  ! Consider moving to the package body's/specification's
-      --    declaration region.
+         Self.On_Event
+           (Name  => Get_Header (Message_Acc.all, "Event"),
+            Event => Message_Acc.all);
+         --  ! Should we handle the exception for the user and pass it back
+         --    via this function?
 
-      Parent_Client : Client_Access;
-      Message_Acc   : Message_Access;
-
-   begin
-      <<Reset_Event_Loop>>
-
-      select
-         accept Start (Client : in out Client_Type) do
-            Parent_Client := Client'Unrestricted_Access;
-            --  This is safe to do, because the event loop task instance
-            --  is declared inside of `Client`, and `Client` only goes out
-            --  of scope once the event loop task has terminated, preventing
-            --  the possiblity of a dangling pointer.
-         end Start;
-      or
-         terminate;
-      end select;
-
-      Indefinite : loop
-
-         declare
-            use Agnostic_IO;
-
-            Read_Error : Read_Error_Kind;
-
-            Socket_Data : constant String := Parent_Client.Channel.Read
-              (Delimiter => Double_CRLF_Delimiter,
-               Error     => Read_Error) & CRLF;
-
-            Action_ID : Action_ID_Range;
-
-         begin
-            if Read_Error /= Agnostic_IO.No_Error then
-               Clean_Up_Client (Parent_Client);
-
-               Parent_Client.Client_Disconnection_Callback
-                 (Cause => (if Parent_Client.Deliberate_Logoff then
-                               Deliberate_Logoff
-                            else
-                               Abnormal_Disconnection),
-
-                  Error => (if Parent_Client.Deliberate_Logoff then
-                               Agnostic_IO.No_Error
-                            else
-                               Read_Error));
-
-               accept Await_Cleanup;
-               goto Reset_Event_Loop;
-            end if;
-
-            Form_AMI_Message (Socket_Data, Message_Acc);
-
-            if Get_Header (Message_Acc.all, "Event") /= "" then
-
-               Parent_Client.Event_Callback
-                 (Name  => Get_Header (Message_Acc.all, "Event"),
-                  Event => Message_Acc.all);
-
-               Free (Message_Acc);
-               --  Heap allocated events are automatically deallocated
-               --  after the user's callback is finished executing.
-
-            elsif Get_Header (Message_Acc.all, "ActionID") /= "" and then
-                  Get_Header (Message_Acc.all, "Response") /= ""     then
-
-               Action_ID := Action_ID_Range'Value
-                 (Get_Header (Message_Acc.all, "ActionID"));
-
-               Parent_Client.Action_Responses
-                 (Action_ID).Set_Response (Message_Acc);
-               --  Heap allocated responses are copied to the stack of the
-               --  task that the user invokes the function `Send_Action`
-               --  from. After they are successfully received, the copy on
-               --  the heap is then deallocated. Responses that don't arrive
-               --  before the timeout set by the user, but still arrive
-               --  later on, are deallocated the next time that the
-               --  `Response_Event_Type` instance is used to receive an
-               --  action's response.
-            end if;
-         end;
-
-         --  Some AMI actions/commands send back events containing
-         --  `Response` and `ActionID` fields too, instead of only using
-         --  a `Response` message (Originate is an example). This is
-         --  currently being ignored because the below conditional statement
-         --  is combined via `elsif`, only ever executing one branch, even if
-         --  a particular message contains `Event`, `ActionID` and `Response`
-         --  fields. If this ever poses a problem with functionality, then
-         --  they can be separated.
-
-      end loop Indefinite;
-
-   exception
-      when Error : others =>
          Free (Message_Acc);
-         Clean_Up_Client (Parent_Client);
+         --  Heap allocated events are automatically deallocated
+         --  after the user's callback is finished executing.
 
-         Ada.Exceptions.Save_Occurrence
-           (Target => Parent_Client.Event_Loop_Exception,
-            Source => Error);
+      elsif Get_Header (Message_Acc.all, "ActionID") /= "" and then
+            Get_Header (Message_Acc.all, "Response") /= ""     then
 
-         raise;
-         --  Re-raise exception after clean up.
+         Action_ID := Action_ID_Range'Value
+           (Get_Header (Message_Acc.all, "ActionID"));
 
-   end Event_Loop_Type;
+         Self.Action_Responses (Action_ID).Set_Response (Message_Acc);
+         --  Heap allocated responses are copied to the stack of the
+         --  task that the user invokes the function `Send_Action`
+         --  from. After they are successfully received, the copy on
+         --  the heap is then deallocated. Responses that don't arrive
+         --  before the timeout set by the user, but still arrive
+         --  later on, are deallocated the next time that the
+         --  `Response_Event_Type` instance is used to receive an
+         --  action's response.
+      end if;
+
+      return True;
+      --  Some AMI actions/commands send back events containing
+      --  `Response` and `ActionID` fields too, instead of only using
+      --  a `Response` message (Originate is an example). This is
+      --  currently being ignored because the below conditional statement
+      --  is combined via `elsif`, only ever executing one branch, even if
+      --  a particular message contains `Event`, `ActionID` and `Response`
+      --  fields. If this ever poses a problem with functionality, then
+      --  they can be separated.
+
+   end Await_Message;
 
    -----------------------
    -- Action_ID_Manager --
@@ -217,10 +206,14 @@ package body Asterisk.AMI is
       ----------------
 
       entry Acquire_ID (ID : out Action_ID_Range)
-        when Next_Free_ID_Index > Action_ID_Range'First
+        when Next_Free_ID_Index >= Natural (Action_IDs'First)
       is
       begin
-         ID := Action_IDs (Next_Free_ID_Index);
+         ID := Action_IDs (Action_ID_Range (Next_Free_ID_Index));
+         --  Cast of Natural value `Next_Free_ID_Index` to type
+         --  `Action_ID_Range` is safe, as the entry's guard will
+         --  prevent this entry from executing until `Next_Free_ID_Index`
+         --  is greater than 0.
          Next_Free_ID_Index := Next_Free_ID_Index - 1;
       end Acquire_ID;
 
@@ -231,7 +224,13 @@ package body Asterisk.AMI is
       procedure Release_ID (ID : in Action_ID_Range) is
       begin
          Next_Free_ID_Index := Next_Free_ID_Index + 1;
-         Action_IDs (Next_Free_ID_Index) := ID;
+         Action_IDs (Action_ID_Range (Next_Free_ID_Index)) := ID;
+         --  ! `Next_Free_ID_Index` can technically hold a value
+         --  greater than what values of type `Action_ID_Range` can
+         --  hold. A guard on this procedure could prevent this, but
+         --  since users can never interact with this type directly,
+         --  and since it also task (thread) safe, this shouldn't be
+         --  an issue.
       end Release_ID;
 
       ----------------
@@ -240,6 +239,7 @@ package body Asterisk.AMI is
 
       procedure Initialize is
       begin
+         Next_Free_ID_Index := 0;
          for ID in Action_IDs'Range loop
             Release_ID (ID);
          end loop;
@@ -290,6 +290,16 @@ package body Asterisk.AMI is
          Response_Arrived := True;
       end Set_Response;
 
+      -----------
+      -- Reset --
+      -----------
+
+      procedure Reset is
+      begin
+         Free (Stored_Response);
+         Response_Arrived := False;
+      end Reset;
+
    end Response_Event_Type;
 
    -------------------------
@@ -306,7 +316,7 @@ package body Asterisk.AMI is
 
       Action_ID_Header : constant String :=
         (if Action.Wants_Response then
-            "ActionID: " & Action_ID_Range'Image (Action.ID) & CRLF
+            "ActionID:" & Action_ID_Range'Image (Action.ID) & CRLF
          else
             "");
 
@@ -361,7 +371,6 @@ package body Asterisk.AMI is
       end loop;
 
       return "";
-
    end Get_Header;
 
    ---------------
@@ -417,7 +426,7 @@ package body Asterisk.AMI is
    is
    begin
       if Index > Action.Header_Count then
-         raise CONSTRAINT_ERROR;
+         raise Constraint_Error;
       else
          if Field /= "" then
             Action.Fields (Index) := To_Unbounded_String (Field);
@@ -447,7 +456,6 @@ package body Asterisk.AMI is
       Secret   : in     String;
       Timeout  : in     Duration := 5.0)
    is
-      use Ada.Exceptions;
       use type Agnostic_IO.Read_Error_Kind;
 
       Socket         : GNAT.Sockets.Socket_Type;
@@ -459,8 +467,6 @@ package body Asterisk.AMI is
       if Self.Channel.Is_Connected then
          Self.Logoff;
       end if;
-
-      Self.Deliberate_Logoff := False;
 
       GNAT.Sockets.Create_Socket
         (Socket => Socket,
@@ -495,60 +501,51 @@ package body Asterisk.AMI is
            & Agnostic_IO.Read_Error_Kind'Image (Read_Error);
       end if;
 
-      if Self.Event_Loop'Terminated then
-         raise AMI_Event_Loop_Terminated_Error with "Client can't be used to "
-           & "login to the server '"
-           & Image (Self.Server_Address)
-           & "' because it's event loop terminated at "
-           & Ada.Calendar.Formatting.Image (Self.Disconnect_Timestamp) & CRLF
-           & "The cause of termination was the exception "
-           & Exception_Name    (Self.Event_Loop_Exception) & " : "
-           & Exception_Message (Self.Event_Loop_Exception);
-      else
-         Self.Event_Loop.Start (Client => Self);
-         --  See note in `Event_Loop_Type` `accept Start` body.
-      end if;
+      Self.Action_IDs.Initialize;
+      for Index in Self.Action_Responses'Range loop
+         Self.Action_Responses (Index).Reset;
+      end loop;
 
-      if Self.Action_IDs.Index_Position = 0 then
-         --  This is the first time this client is logging in, so intialize
-         --  the stack of available action IDs.
-
-         --  ! Although very unlikely, this would falsely get invoked if
-         --    a package user managed to have all action IDs in use, log out
-         --    and then log back in. A solution to this (possibly the best
-         --    one), and to a few other initialization issues we've encountered
-         --    since allowing re-logins to occur, would be to try and derive
-         --    the AMI client type from `Ada.Finalization.Controlled`.
-         Self.Action_IDs.Initialize;
-      end if;
-
-      Set_Header (Action_Login, "Action",   "Login");
+      Set_Header (Action_Login, "Action", "Login");
       Set_Header (Action_Login, "Username", Username);
-      Set_Header (Action_Login, "Secret",   Secret);
+      Set_Header (Action_Login, "Secret", Secret);
+
+      Self.Send_Action (Action_Login);
 
       declare
-         Login_Response : constant Message_Type :=
-           Self.Send_Action (Action_Login);
+         Socket_Data : constant String := Read_AMI_Message
+           (Channel   => Self.Channel,
+            Delimiter => CRLF_Delimiter,
+            Timeout   => Timeout,
+            Error     => Read_Error);
 
       begin
-         if Login_Response = No_Response then
+         if Read_Error /= Agnostic_IO.No_Error then
 
-            raise AMI_Error with "Couldn't login to AMI server at '"
-              & Image (Self.Server_Address) & "' because no "
+            raise AMI_Error with "Couldn't login to AMI server at """
+              & Image (Self.Server_Address) & """ because the read error "
+              & """" & Agnostic_IO.Read_Error_Kind'Image (Read_Error)
+              & """ occurred";
+
+         elsif Socket_Data'Length = 0 then
+
+            raise AMI_Error with "Couldn't login to AMI server at """
+              & Image (Self.Server_Address) & """ because no "
               & "response was received before the timeout.";
 
-         elsif Get_Header (Login_Response, "Response") /= "Success" then
+         else
 
-            raise AMI_Error with "Couldn't login to AMI server at '"
-              & Image (Self.Server_Address)
-              & "', the AMI server responded with: '"
-              & Get_Header (Login_Response, "Message") & "'";
+            if not Find_Pattern ("Success", In_String => Socket_Data) then
+
+               raise AMI_Error with "Couldn't login to AMI server at """
+                 & Image (Self.Server_Address)
+                 & """, the AMI server responded with:" & CRLF
+                 & """" & Socket_Data & """";
+
+            end if;
 
          end if;
       end;
-
-      Self.Disconnect_Timestamp := Never_Disconnected;
-
    end Login;
 
    ------------
@@ -559,16 +556,19 @@ package body Asterisk.AMI is
       Action_Logoff : Action_Type (Header_Count => 1);
 
    begin
-      --  ! Raise exception if event loop has already terminated?
-
-      Self.Deliberate_Logoff := True;
+      if not Self.Channel.Is_Connected then
+         return;
+      end if;
 
       Set_Header       (Action_Logoff, "Action", "Logoff");
       Self.Send_Action (Action_Logoff);
 
-      Self.Event_Loop.Await_Cleanup;
-      --  The event loop handles closure of the socket from our end.
-      --  ! Consider moving the call to `Self.Channel.Close` back here.
+      Self.AMI_Version := Null_Unbounded_String;
+      --  ! Reset `Self.Server_Address` to some default value too?
+
+      if Self.Channel.Is_Connected then
+         Self.Channel.Close;
+      end if;
    end Logoff;
 
    -----------------
@@ -599,18 +599,10 @@ package body Asterisk.AMI is
       Action  : in out Action_Type;
       Timeout : in     Duration := 5.0) return Message_Type
    is
-      use Ada.Task_Identification;
-
       Response_Acc : Message_Access;
 
    begin
-      if Ada.Task_Identification.Current_Task = Self.Event_Loop'Identity then
-
-         raise AMI_Error with "Receipt of action responses cannot be performed "
-           & "inside the event callback (a deadlock would occur).";
-
-      elsif Self.Channel.Is_Connected = False then
-
+      if not Self.Channel.Is_Connected then
          return No_Response;
       end if;
 
@@ -693,13 +685,5 @@ package body Asterisk.AMI is
           To_String (Self.AMI_Version)
        else
           "");
-
-   ----------------------------
-   -- Get_Disconnection_Time --
-   ----------------------------
-
-   function Get_Disconnection_Time
-     (Self : in Client_Type) return Ada.Calendar.Time
-   is (Self.Disconnect_Timestamp);
 
 end Asterisk.AMI;

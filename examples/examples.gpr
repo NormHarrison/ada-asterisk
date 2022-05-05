@@ -1,24 +1,20 @@
 with "aws";
 with "gnatcoll";
-with "./deps/agnostic_io/ada_agnostic_io.gpr";
+with "../ada_asterisk";
 
 
-library project Ada_Asterisk is
+project Examples is
 
-   type Library_Type is ("static", "relocatable");
    type Build_Type is ("release", "debug");
 
-   Library_Kind : Library_Type := external ("LIBRARY_TYPE", "static");
    Build_Kind : Build_Type := external ("BUILD_TYPE", "debug");
 
-   for Source_Dirs use ("src");
+   for Source_Dirs use ("ari", "ami", "processagi", "fastagi", "audiosocket");
+   for Main use ("ari_client_example", "ami_client_example");
    for Create_Missing_Dirs use "true";
       
-   for Object_Dir  use "obj/" & Build_Kind & "/" & Library_Kind;
-   for Library_Dir use "lib/" & Build_Kind & "/" & Library_Kind;
-
-   for Library_Name use "ada_asterisk";
-   for Library_Kind use Library_Kind;
+   for Object_Dir use "obj/" & Build_Kind;
+   for Exec_Dir use "bin/" & Build_Kind;
 
    Common_Compiler_Switches :=
      ("-gnat2012",
@@ -31,7 +27,7 @@ library project Ada_Asterisk is
          when "release" =>
             for Default_Switches ("Ada") use
                Common_Compiler_Switches;
-         when "debug"      =>
+         when "debug"   =>
             for Default_Switches ("Ada") use
                Common_Compiler_Switches & ("-g", "-gnateE");
       end case;
@@ -41,9 +37,9 @@ library project Ada_Asterisk is
       case Build_Kind is
          when "release" =>
             null;
-         when "debug"      =>
+         when "debug"   =>
             for Default_Switches ("Ada") use ("-E");
       end case;
    end Binder;
 
-end Ada_Asterisk;
+end Examples;

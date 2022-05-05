@@ -2,6 +2,12 @@
 
 ## Both
 
+- Don't make use of internal tasks, have users call a `Poll`,
+  `Check_For_Messages`, `Await_Messages` or similarly named
+  subprogram from a task they create to provide for the event loop.
+  Another idea, could users "pass in" a task for us to use on their behalf?
+  Specifically, a task conforming to a particular interface?
+
 - Allow user to specify buffer size and/or recursion limit of underlying
   `Socket_Channel_Type`.
 
