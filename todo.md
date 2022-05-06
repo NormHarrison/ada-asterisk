@@ -47,6 +47,9 @@
 
 ## AMI related:
 
+- Now that the `Login` procedure doesn't rely on the message/event loop,
+consider integerating the task back into the client itself?...
+
 - The underlying socket inside the socket channel isn't being closed
 when certain exceptions occur in the `Login` procedure (specifically
 when the credentials aren't correct, e.g. the last two `raise` statements).
