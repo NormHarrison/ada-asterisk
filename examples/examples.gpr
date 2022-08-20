@@ -9,10 +9,10 @@ project Examples is
 
    Build_Kind : Build_Type := external ("BUILD_TYPE", "debug");
 
-   for Source_Dirs use ("ari", "ami", "processagi", "fastagi", "audiosocket");
-   for Main use ("ari_client_example", "ami_client_example");
+   for Source_Dirs use ("ami", "audiosocket");
+   for Main use ("ami_client_example");
    for Create_Missing_Dirs use "true";
-      
+
    for Object_Dir use "obj/" & Build_Kind;
    for Exec_Dir use "bin/" & Build_Kind;
 

@@ -28,13 +28,4 @@ package body My_AMI_Client is
 
    end On_Event;
 
-   -------------------
-   -- On_Disconnect --
-   -------------------
-
-   overriding procedure On_Disconnect (Unused_Client : in out Client_Type) is
-   begin
-      Put_Line ("Client was disconnected from AMI server.");
-   end On_Disconnect;
-
 end My_AMI_Client;

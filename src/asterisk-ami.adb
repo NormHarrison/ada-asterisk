@@ -3,9 +3,7 @@
 with Ada.Strings.Fixed;
 with Ada.Strings.Maps;
 with Ada.Strings;
-with Ada.Streams;
-
-with Agnostic_IO;
+with Ada.Exceptions;
 
 
 package body Asterisk.AMI is
@@ -13,24 +11,44 @@ package body Asterisk.AMI is
    use Ada.Strings.Unbounded;
 
    CRLF_Delimiter : constant Ada.Streams.Stream_Element_Array :=
-     Socket_AIO.To_Stream_Element_Array (CRLF);
+     Buffered_Strings.To_SEA (CRLF);
 
    Double_CRLF_Delimiter : constant Ada.Streams.Stream_Element_Array :=
-     Socket_AIO.To_Stream_Element_Array (CRLF & CRLF);
+     Buffered_Strings.To_SEA (CRLF & CRLF);
+
+   ------------------------
+   -- Cleanup_Connection --
+   ------------------------
+
+   procedure Cleanup_Connection (Self : in out Client_Type) is
+   begin
+      Self.Connected      := False;
+      Self.Server_Address :=
+        (case Self.Address_Family is
+            when Family_Inet =>
+               (Family => Family_Inet,
+                Port   => No_Port,
+                Addr   => Any_Inet_Addr),
+
+            when Family_Inet6 =>
+               (Family => Family_Inet6,
+                Port   => No_Port,
+                Addr   => Any_Inet6_Addr));
+
+      GNAT.Sockets.Close_Socket (Self.Stream.To_Socket);
+   end Cleanup_Connection;
 
    ----------------------
    -- Read_AMI_Message --
    ----------------------
 
    function Read_AMI_Message
-      (Channel   : in out Socket_AIO.Socket_Channel_Type;
-       Delimiter : in     Ada.Streams.Stream_Element_Array;
-       Timeout   : in     Duration;
-       Error     :    out Agnostic_IO.Read_Error_Kind) return String
-   is
+     (Buffered_Socket : in out Buffered_Strings.Unique_Buffer_Type;
+      Delimiter       : in     Ada.Streams.Stream_Element_Array;
+      Timeout         : in     Duration;
+      Error           :    out Ada.Exceptions.Exception_Occurrence)
+   return String is
    begin
-      Error := Agnostic_IO.No_Error;
-
       select
 
          delay Timeout;
@@ -38,10 +56,12 @@ package body Asterisk.AMI is
       then abort
 
          declare
-            Socket_Data : constant String := Channel.Read (Delimiter, Error);
+            Socket_Data : constant String := Buffered_Socket.Read_Until
+              (Delimiter, Error);
 
          begin
             return Socket_Data;
+
          end;
 
       end select;
@@ -70,15 +90,14 @@ package body Asterisk.AMI is
    -- Parse_AMI_Message --
    -----------------------
 
+   CRLF_Set : constant Ada.Strings.Maps.Character_Set :=
+     Ada.Strings.Maps.To_Set (CRLF);
+   --  ! Consider moving to private part of specification.
+
    procedure Parse_AMI_Message
      (Data        : in     String;
       Message_Acc :    out Message_Access)
    is
-      CRLF_Set : constant Ada.Strings.Maps.Character_Set :=
-        Ada.Strings.Maps.To_Set (CRLF);
-      --  ! Consider moving to the package body's/specification's
-      --    declaration region.
-
       Line_Count : constant Natural := Count_Lines (Data);
       Line_Start :          Natural := 0;
       Line_End   :          Natural;
@@ -119,37 +138,40 @@ package body Asterisk.AMI is
    -- Await_Message --
    -------------------
 
-   function Await_Message
+   procedure Await_Message
      (Self    : in out Client_Type'Class;
-      Timeout : in     Duration := Duration'Last) return Boolean
+      Timeout : in     Duration := Duration'Last)
    is
-      use Agnostic_IO;
+      use type Ada.Exceptions.Exception_Id;
 
-      Read_Error : Read_Error_Kind;
+      Read_Error : Ada.Exceptions.Exception_Occurrence;
 
       Socket_Data : constant String := Read_AMI_Message
-        (Channel   => Self.Channel,
-         Delimiter => Double_CRLF_Delimiter,
-         Timeout   => Timeout,
-         Error     => Read_Error);
+        (Buffered_Socket => Self.Buffered_Socket,
+         Delimiter       => Double_CRLF_Delimiter,
+         Timeout         => Timeout,
+         Error           => Read_Error);
 
       Message_Acc : Message_Access;
       Action_ID   : Action_ID_Range;
 
    begin
-      if not Self.Channel.Is_Connected then
-         return False;
+      if Ada.Exceptions.Exception_Identity (Read_Error) /=
+         Ada.Exceptions.Null_Id
+      then
+         if not Self.Connected then
+            Self.Connected := False;
+            GNAT.Sockets.Close_Socket (Self.Stream.To_Socket);
+            --  ! This behavior may not be optimal when the recursion limit
+            --  is reached. We could add in another if statement to not close
+            --  the socket if it is inside the exception instance.
+         end if;
 
-      elsif Read_Error /= Agnostic_IO.No_Error then
-
-         Self.On_Disconnect;
-         --  ! Eventually pass in `Read_Error`?
-         return False;
+         Ada.Exceptions.Reraise_Occurrence (Read_Error);
 
       elsif Socket_Data'Length = 0 then
-
-         return False;
-
+         --  ! Should we create an exception for when a timeout occurrs?
+         return;
       end if;
 
       Parse_AMI_Message (Socket_Data, Message_Acc);
@@ -159,8 +181,6 @@ package body Asterisk.AMI is
          Self.On_Event
            (Name  => Get_Header (Message_Acc.all, "Event"),
             Event => Message_Acc.all);
-         --  ! Should we handle the exception for the user and pass it back
-         --    via this function?
 
          Free (Message_Acc);
          --  Heap allocated events are automatically deallocated
@@ -181,9 +201,14 @@ package body Asterisk.AMI is
          --  later on, are deallocated the next time that the
          --  `Response_Event_Type` instance is used to receive an
          --  action's response.
+
+      else
+         null;
+         --  ! Create an exception for corrupted/unknown messages?
+         --  This may also be a place where `Self.Connected` is set
+         --  to False and the socket is closed.
       end if;
 
-      return True;
       --  Some AMI actions/commands send back events containing
       --  `Response` and `ActionID` fields too, instead of only using
       --  a `Response` message (Originate is an example). This is
@@ -312,8 +337,6 @@ package body Asterisk.AMI is
    function Concatenate_Headers
      (Action : in Action_Type) return String with Inline
    is
-      CRLF : constant String := Character'Val (13) & Character'Val (10);
-
       Action_ID_Header : constant String :=
         (if Action.Wants_Response then
             "ActionID:" & Action_ID_Range'Image (Action.ID) & CRLF
@@ -443,7 +466,7 @@ package body Asterisk.AMI is
    ----------------
 
    function Get_Socket (Self : in Client_Type) return GNAT.Sockets.Socket_Type
-   is (Self.Channel.To_Socket);
+   is (Self.Stream.To_Socket);
 
    -----------
    -- Login --
@@ -456,15 +479,16 @@ package body Asterisk.AMI is
       Secret   : in     String;
       Timeout  : in     Duration := 5.0)
    is
-      use type Agnostic_IO.Read_Error_Kind;
+      use type Ada.Exceptions.Exception_Id;
 
       Socket         : GNAT.Sockets.Socket_Type;
       Connect_Result : Selector_Status;
-      Read_Error     : Agnostic_IO.Read_Error_Kind;
-      Action_Login   : Action_Type (Header_Count => 3);
+      Read_Error     : Ada.Exceptions.Exception_Occurrence;
+
+      Action_Login : Action_Type (Header_Count => 3);
 
    begin
-      if Self.Channel.Is_Connected then
+      if Self.Connected then
          Self.Logoff;
       end if;
 
@@ -491,14 +515,19 @@ package body Asterisk.AMI is
       end if;
 
       Self.Server_Address := Address;
-      Self.Channel.Set_Socket (Socket);
+      Self.Connected      := True;
+
+      Self.Stream.Initialize (Socket);
+      Self.Buffered_Socket.Set_Stream (Self.Stream.To_Access);
 
       Self.AMI_Version := To_Unbounded_String
-        (Self.Channel.Read_Line (Read_Error));
+        (Self.Buffered_Socket.Read_Until (CRLF_Delimiter, Read_Error));
 
-      if Read_Error /= Agnostic_IO.No_Error then
-         raise AMI_Error with "Error while reading version information: "
-           & Agnostic_IO.Read_Error_Kind'Image (Read_Error);
+      if Ada.Exceptions.Exception_Identity (Read_Error) /=
+         Ada.Exceptions.Null_Id
+      then
+         Self.Cleanup_Connection;
+         Ada.Exceptions.Reraise_Occurrence (Read_Error);
       end if;
 
       Self.Action_IDs.Initialize;
@@ -514,35 +543,33 @@ package body Asterisk.AMI is
 
       declare
          Socket_Data : constant String := Read_AMI_Message
-           (Channel   => Self.Channel,
-            Delimiter => CRLF_Delimiter,
-            Timeout   => Timeout,
-            Error     => Read_Error);
+           (Buffered_Socket => Self.Buffered_Socket,
+            Delimiter       => CRLF_Delimiter,
+            Timeout         => Timeout,
+            Error           => Read_Error);
 
       begin
-         if Read_Error /= Agnostic_IO.No_Error then
+         if Ada.Exceptions.Exception_Identity (Read_Error) /=
+            Ada.Exceptions.Null_Id
+         then
 
-            raise AMI_Error with "Couldn't login to AMI server at """
-              & Image (Self.Server_Address) & """ because the read error "
-              & """" & Agnostic_IO.Read_Error_Kind'Image (Read_Error)
-              & """ occurred";
+            Self.Cleanup_Connection;
+            Ada.Exceptions.Reraise_Occurrence (Read_Error);
 
          elsif Socket_Data'Length = 0 then
 
+            Self.Cleanup_Connection;
             raise AMI_Error with "Couldn't login to AMI server at """
               & Image (Self.Server_Address) & """ because no "
               & "response was received before the timeout.";
 
-         else
+         elsif not Find_Pattern ("Success", In_String => Socket_Data) then
 
-            if not Find_Pattern ("Success", In_String => Socket_Data) then
-
-               raise AMI_Error with "Couldn't login to AMI server at """
-                 & Image (Self.Server_Address)
-                 & """, the AMI server responded with:" & CRLF
-                 & """" & Socket_Data & """";
-
-            end if;
+            Self.Cleanup_Connection;
+            raise AMI_Error with "Couldn't login to AMI server at """
+              & Image (Self.Server_Address)
+              & """, the AMI server responded with:" & CRLF
+              & """" & Socket_Data & """";
 
          end if;
       end;
@@ -556,19 +583,15 @@ package body Asterisk.AMI is
       Action_Logoff : Action_Type (Header_Count => 1);
 
    begin
-      if not Self.Channel.Is_Connected then
+      if not Self.Connected then
          return;
       end if;
 
       Set_Header       (Action_Logoff, "Action", "Logoff");
       Self.Send_Action (Action_Logoff);
 
+      Self.Cleanup_Connection;
       Self.AMI_Version := Null_Unbounded_String;
-      --  ! Reset `Self.Server_Address` to some default value too?
-
-      if Self.Channel.Is_Connected then
-         Self.Channel.Close;
-      end if;
    end Logoff;
 
    -----------------
@@ -579,17 +602,18 @@ package body Asterisk.AMI is
      (Self   : in out Client_Type;
       Action : in out Action_Type)
    is
-      Action_String : constant String := Concatenate_Headers (Action);
+      Action_String : constant String := Concatenate_Headers (Action) & CRLF;
 
    begin
-      if Self.Channel.Is_Connected then
+      if Self.Connected then
          Self.Socket_Write_Mutex.Acquire;
-         Self.Channel.Write_Line (Action_String);
+         String'Write (Self.Stream.To_Access, Action_String);
          Self.Socket_Write_Mutex.Release;
-         --  `Channel.Write_Line` shouldn't ever raise an exception, so an
-         --  exception handler to ensure the mutex is released isn't
-         --  required here.
       end if;
+
+   exception
+      when others => Self.Socket_Write_Mutex.Release;
+
    end Send_Action;
 
    -----------------
@@ -602,7 +626,7 @@ package body Asterisk.AMI is
       Response_Acc : Message_Access;
 
    begin
-      if not Self.Channel.Is_Connected then
+      if not Self.Connected then
          return No_Response;
       end if;
 
@@ -652,7 +676,8 @@ package body Asterisk.AMI is
             Response : constant Message_Type := Response_Acc.all;
             --  Copy the heap allocated `Message_Type` instance that holds
             --  the action response to the stack of the task (thread)
-            --  that the user invoked this function from.
+            --  that the user invoked this function from, then free the
+            --  heap allocated instance.
          begin
             Free (Response_Acc);
             return Response;
@@ -666,7 +691,7 @@ package body Asterisk.AMI is
    ------------------
 
    function Is_Connected (Self : in Client_Type) return Boolean
-   is (Self.Channel.Is_Connected);
+   is (Self.Connected);
 
    ------------------------
    -- Get_Server_Address --
@@ -681,9 +706,6 @@ package body Asterisk.AMI is
    ---------------------
 
    function Get_AMI_Version (Self : in Client_Type) return String
-   is (if Self.Channel.Is_Connected then
-          To_String (Self.AMI_Version)
-       else
-          "");
+   is (if Self.Connected then To_String (Self.AMI_Version) else "");
 
 end Asterisk.AMI;

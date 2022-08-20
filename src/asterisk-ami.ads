@@ -1,11 +1,28 @@
+with Ada.Streams;
+
 with GNAT.Sockets;
 
 private with Ada.Unchecked_Deallocation;
 
-private with Socket_AIO;
+private with Buffered_Streams.Unique_Buffer;
+private with Buffered_Streams.Socket_Streamer;
 
 
 package Asterisk.AMI is
+
+--  ! Test ability to re-login to a server after a disconnection,
+--  make sure that the way in which it is done is realistic/not
+--  convoluted and isn't tied to a very specific pattern.
+
+--  ! Strongly consider using the socket option-based timeout option instead
+--  of the `select` based one, which seems to produce an un-handleable
+--  exception when it interrupts the system call.
+
+--  ! Strongly consider adding a special operator that provides
+--  "syntactic sugar" for adding fields/values to an `Action_Type`.
+
+--  ! Consider renaming/declaring `Ada.Streams.Stream_Element_Offset`
+--  directly in this package specification.
 
    AMI_Error : exception;
    --  The exception raised when any known error from this package's
@@ -14,18 +31,22 @@ package Asterisk.AMI is
    --  do so, have it indicated in their descriptions below.
    --  ! Opt for more specific variations, or use Boolean out parameters?
 
+   --AMI_Recursion_Limit_Error : exception renames
+     --Buffered_Streams.Unique_Buffer.BS_Recursion_Limit_Error;
+   --  ! What is the best way to handle giving the user access to this
+   --  exception? Generics complicate things a bit...
+
    type Message_Type (Header_Count : Natural) is private;
-   --  Represents data received from Asterisk, used when for AMI events and
+   --  Represents data received from Asterisk, used for AMI events and
    --  action responses. While Instances of this type are never manually
    --  initialized by the user, it is an indefinite type, meaning that when
-   --  receiving action responces, a declaration of a variable using this
-   --  type will need to be initialized by the return value of the
-   --  'Send_Action' function.
+   --  receiving action responses initialization must performed during
+   --  declaration (primarily with the return value of the function
+   --  `Send_Action`).
 
    No_Response : constant Message_Type;
-   --  Used exclusively as a return value for the function `Send_Action`,
-   --  indicates that no response from Asterisk was received before the
-   --  timeout.
+   --  Returned by the function `Send_Action` when no response from Asterisk
+   --  was received before the timeout.
 
    function Get_Header
      (Message  : in Message_Type;
@@ -54,7 +75,7 @@ package Asterisk.AMI is
    --  specified index instead of the field name.
 
    type Action_Type (Header_Count : Natural) is limited private;
-   --  Used to represent AMI actions sent to Asterisk. The number of headers
+   --  Represent AMI actions sent to Asterisk. The number of headers
    --  the action will contain must be specified upon declaration via the
    --  `Header_Count` discriminant. This can be made more convenient via Ada's
    --  inline declaration regions (the `declare` statement). If more
@@ -87,8 +108,11 @@ package Asterisk.AMI is
    --  `Header_Count` discriminant. If it is larger, the exception
    --  `Constraint_Error` is raised.
 
-   type Client_Type (Address_Family : GNAT.Sockets.Family_Type) is
-     tagged limited private;
+   type Client_Type
+     (Address_Family   : GNAT.Sockets.Family_Inet_4_6;
+      Read_Buffer_Size : Ada.Streams.Stream_Element_Offset;
+      Recursion_Limit  : Natural)
+   is tagged limited private;
 
    type Client_Access is access all Client_Type'Class;
 
@@ -96,7 +120,7 @@ package Asterisk.AMI is
    --  pemitting the sending of actions, receipt of their responses and of
    --  standalone AMI events. This type is meant to be dervived from in order
    --  to receive events via a user provided callback, see `Event_Callback`
-   --  near the end of this specification's public part. This type is
+   --  near the end of the specification's public part. This type is
    --  instantiated via a successfull login to an AMI server. Instances of
    --  this type can safely be shared between multiple tasks (threads).
 
@@ -144,20 +168,25 @@ package Asterisk.AMI is
       Name  : in     String;
       Event : in     Message_Type) is null;
    --  To be overridden by the user if needed. This procedure is invoked
-   --  after a call to `Await_Message` if an AMI event arrived from Asterisk.
-   --  If not overridden, events are silently ignored.
+   --  after a call to `Await_Message` once an AMI event has arrived from
+   --  Asterisk. If not overridden, events are silently ignored.
 
-   procedure On_Disconnect (Self : in out Client_Type) is null;
+   --procedure On_Disconnect (Self : in out Client_Type) is null;
    --  To be overridden by the user if needed. This procedure is invoked if
    --  the client gets disconnected from the AMI server during a call to
    --  `Await_Message`. A disconnect can occur because of a deliberate logoff,
    --  a network issue, or socket closure from the server's end.
    --  ! Consider forcing user's to override, along with discerning between
    --    deliberate and accidental disconnects.
+   --  ! Pass buffered streams exception back via an out parameter?
+   --  ! Consider getting rid of completely and just determining disconnects
+   --  via exceptions raised or returned from `Await_Message`?
 
-   function Await_Message
+
+   procedure Await_Message
      (Self    : in out Client_Type'Class;
-      Timeout : in     Duration := Duration'Last) return Boolean;
+      Timeout : in     Duration := Duration'Last);
+   --  ! Raise buffered streams exception from this subprogram?
 
    procedure Send_Action
      (Self   : in out Client_Type;
@@ -213,6 +242,7 @@ private
       Fields : Unbounded_String_Array (1 .. Header_Count);
       Values : Unbounded_String_Array (1 .. Header_Count);
    end record;
+   --  ! Consider switching this type to and indefinite hashed map.
 
    type Message_Access is access Message_Type;
 
@@ -265,16 +295,40 @@ private
 
    use GNAT.Sockets;
 
-   type Client_Type
-     (Address_Family : GNAT.Sockets.Family_Type)
-   is tagged limited record
-      Channel : Socket_AIO.Socket_Channel_Type
-        (Buffer_Start_Size => 500,
-         Line_Ending       => Socket_AIO.Carriage_Return_Line_Feed,
-         Recursion_Limit   => 4);
+   package Buffered_Strings is new Buffered_Streams.Unique_Buffer
+     (Index_Type   => Positive,
+      Element_Type => Character,
+      Array_Type   => String,
+      "+"          => "+");
 
-      Server_Address     : Sock_Addr_Type (Address_Family);
+   type Client_Type
+     (Address_Family   : GNAT.Sockets.Family_Inet_4_6;
+      Read_Buffer_Size : Ada.Streams.Stream_Element_Offset;
+      Recursion_Limit  : Natural)
+   is tagged limited record
+
+      Stream          : Buffered_Streams.Socket_Streamer.TCP_Stream_Type;
+      Buffered_Socket : Buffered_Strings.Unique_Buffer_Type
+        (Read_Buffer_Size  => Read_Buffer_Size,
+         Write_Buffer_Size => 0,
+         Recursion_Limit   => Recursion_Limit);
+         --  ! We may want to utilize the write buffer to avoid having to
+         --  manually concatenate messages on the stack.
+
       Socket_Write_Mutex : Critical_Section;
+      --  ! Replace with atomic spin lock?
+      Connected          : Boolean        := False;
+      Server_Address     : Sock_Addr_Type :=
+        (case Address_Family is
+            when Family_Inet =>
+               (Family => Family_Inet,
+                Port   => No_Port,
+                Addr   => Any_Inet_Addr),
+
+            when Family_Inet6 =>
+               (Family => Family_Inet6,
+                Port   => No_Port,
+                Addr   => Any_Inet6_Addr));
 
       AMI_Version : Ada.Strings.Unbounded.Unbounded_String;
 

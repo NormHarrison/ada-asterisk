@@ -2,6 +2,10 @@
 
 ## Both
 
+- Consider using `GNAT.Sockets.Family_Inet_4_6` instead of
+`GNAT.Sockets.Family_Type` for the `Address_Family` discriminant of the
+libraries various types.
+
 - Don't make use of internal tasks, have users call a `Poll`,
   `Check_For_Messages`, `Await_Messages` or similarly named
   subprogram from a task they create to provide for the event loop.
@@ -46,6 +50,11 @@
 
 
 ## AMI related:
+
+- Strongly consider adding a special operator that provides "syntactic sugar"
+for adding fields/values to an `Action_Type`.
+
+- (Try) switching `Message_Type` to use an indefinite hashed map.
 
 - Now that the `Login` procedure doesn't rely on the message/event loop,
 consider integerating the task back into the client itself?...

@@ -12,7 +12,7 @@ package Asterisk is
 private
 
    Line_Feed : constant Character := Character'Val (10);
-   CRLF      : constant String := Character'Val (13) & Line_Feed;
+   CRLF      : constant String    := Character'Val (13) & Line_Feed;
 
    type Unbounded_String_Array is array (Positive range <>) of
      Ada.Strings.Unbounded.Unbounded_String;

@@ -1,0 +1,15 @@
+With Agnostic_IO:
+	1:
+	Total time of all tests: 0.904708000
+	Average time of all 800 tests: 0.001130885
+
+	2:
+	Total time of all tests: 1.167769000
+	Average time of all 800 tests: 0.001459711
+
+	3:
+	Total time of all tests: 1.005753000
+	Average time of all 800 tests: 0.001257191
+
+With reading a character at a time:
+
