@@ -12,13 +12,6 @@ libraries various types.
   Another idea, could users "pass in" a task for us to use on their behalf?
   Specifically, a task conforming to a particular interface?
 
-- Allow user to specify buffer size and/or recursion limit of underlying
-  `Socket_Channel_Type`.
-
-- Could the `Agnostic_IO` package specific error kinds be replaced with
-  Ada provided exceptions, like those in the `IO_Exceptions` package?
-  Maybe we could just pass around an exception ID instead?
-
 ## AGI related:
 
 - Reading and writing of data should be handled uniquely for the best safety.

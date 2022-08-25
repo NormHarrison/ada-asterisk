@@ -16,11 +16,30 @@ package body Asterisk.AMI is
    Double_CRLF_Delimiter : constant Ada.Streams.Stream_Element_Array :=
      Buffered_Strings.To_SEA (CRLF & CRLF);
 
+   ----------------------
+   -- Is_Timeout_Error --
+   ----------------------
+
+   function Is_Timeout_Error
+     (Occurrence : in Ada.Exceptions.Exception_Occurrence) return Boolean
+   is
+      use Ada.Exceptions;
+
+   begin
+      if Exception_Identity (Occurrence) = Socket_Error'Identity and then
+         Exception_Message  (Occurrence) (2 .. 3) = "35"
+      then
+         return True;
+      else
+         return False;
+      end if;
+   end Is_Timeout_Error;
+
    ------------------------
    -- Cleanup_Connection --
    ------------------------
 
-   procedure Cleanup_Connection (Self : in out Client_Type) is
+   procedure Cleanup_Connection (Self : in out Client_Type'Class) is
    begin
       Self.Connected      := False;
       Self.Server_Address :=
@@ -43,30 +62,32 @@ package body Asterisk.AMI is
    ----------------------
 
    function Read_AMI_Message
-     (Buffered_Socket : in out Buffered_Strings.Unique_Buffer_Type;
+     (AMI_Client      : in out Client_Type'Class;
       Delimiter       : in     Ada.Streams.Stream_Element_Array;
-      Timeout         : in     Duration;
+      New_Timeout     : in     GNAT.Sockets.Timeval_Duration;
       Error           :    out Ada.Exceptions.Exception_Occurrence)
    return String is
    begin
-      select
 
-         delay Timeout;
+      if New_Timeout /= AMI_Client.Last_Await_Timeout then
 
-      then abort
+         GNAT.Sockets.Set_Socket_Option
+           (Socket => AMI_Client.Stream.To_Socket,
+            Level  => GNAT.Sockets.Socket_Level,
+            Option => (Name    => GNAT.Sockets.Receive_Timeout,
+                       Timeout => New_Timeout));
 
-         declare
-            Socket_Data : constant String := Buffered_Socket.Read_Until
-              (Delimiter, Error);
+         AMI_Client.Last_Await_Timeout := New_Timeout;
 
-         begin
-            return Socket_Data;
+      end if;
 
-         end;
+      declare
+         Socket_Data : constant String :=
+           AMI_Client.Buffered_Socket.Read_Until (Delimiter, Error);
 
-      end select;
-
-      return "";
+      begin
+         return Socket_Data;
+      end;
 
    end Read_AMI_Message;
 
@@ -140,17 +161,17 @@ package body Asterisk.AMI is
 
    procedure Await_Message
      (Self    : in out Client_Type'Class;
-      Timeout : in     Duration := Duration'Last)
+      Timeout : in     GNAT.Sockets.Timeval_Duration := GNAT.Sockets.Forever)
    is
-      use type Ada.Exceptions.Exception_Id;
+      use type Ada.Exceptions.Exception_ID;
 
       Read_Error : Ada.Exceptions.Exception_Occurrence;
 
       Socket_Data : constant String := Read_AMI_Message
-        (Buffered_Socket => Self.Buffered_Socket,
-         Delimiter       => Double_CRLF_Delimiter,
-         Timeout         => Timeout,
-         Error           => Read_Error);
+        (AMI_Client  => Self,
+         Delimiter   => Double_CRLF_Delimiter,
+         New_Timeout => Timeout,
+         Error       => Read_Error);
 
       Message_Acc : Message_Access;
       Action_ID   : Action_ID_Range;
@@ -159,19 +180,25 @@ package body Asterisk.AMI is
       if Ada.Exceptions.Exception_Identity (Read_Error) /=
          Ada.Exceptions.Null_Id
       then
-         if not Self.Connected then
-            Self.Connected := False;
-            GNAT.Sockets.Close_Socket (Self.Stream.To_Socket);
-            --  ! This behavior may not be optimal when the recursion limit
-            --  is reached. We could add in another if statement to not close
-            --  the socket if it is inside the exception instance.
+
+         if Self.Connected then
+
+            if Is_Timeout_Error (Read_Error) then
+               raise AMI_Timeout_Error with "No message received after "
+                 & Duration'Image (Timeout) & " seconds.";
+            else
+               Cleanup_Connection (Self);
+               Ada.Exceptions.Reraise_Occurrence (Read_Error);
+               --  ! This behavior may not be optimal when the recursion limit
+               --  is reached. We could treat the recursion limit exception
+               --  the same as when a timeout occurrs (i.e. not calling
+               --  `Cleanup_Connection`).
+            end if;
+
+         else
+            raise AMI_Deliberate_Disconnect;
          end if;
 
-         Ada.Exceptions.Reraise_Occurrence (Read_Error);
-
-      elsif Socket_Data'Length = 0 then
-         --  ! Should we create an exception for when a timeout occurrs?
-         return;
       end if;
 
       Parse_AMI_Message (Socket_Data, Message_Acc);
@@ -477,7 +504,7 @@ package body Asterisk.AMI is
       Address  : in     GNAT.Sockets.Sock_Addr_Type;
       Username : in     String;
       Secret   : in     String;
-      Timeout  : in     Duration := 5.0)
+      Timeout  : in     GNAT.Sockets.Timeval_Duration := 5.0)
    is
       use type Ada.Exceptions.Exception_Id;
 
@@ -510,7 +537,7 @@ package body Asterisk.AMI is
       end;
 
       if Connect_Result /= GNAT.Sockets.Completed then
-         raise AMI_Error with "No response from host '"
+         raise AMI_Server_Unreachable_Error with "No response from host '"
            & Image (Address) & "' during login attempt.";
       end if;
 
@@ -521,12 +548,22 @@ package body Asterisk.AMI is
       Self.Buffered_Socket.Set_Stream (Self.Stream.To_Access);
 
       Self.AMI_Version := To_Unbounded_String
-        (Self.Buffered_Socket.Read_Until (CRLF_Delimiter, Read_Error));
+        (Read_AMI_Message (AMI_Client  => Self,
+                           Delimiter   => CRLF_Delimiter,
+                           New_Timeout => Timeout,
+                           Error       => Read_Error));
 
       if Ada.Exceptions.Exception_Identity (Read_Error) /=
          Ada.Exceptions.Null_Id
       then
          Self.Cleanup_Connection;
+
+         if Is_Timeout_Error (Read_Error) then
+            raise AMI_Timeout_Error with "Couldn't login to AMI server at """
+              & Image (Self.Server_Address) & """ because no version info "
+              & "was received before the timeout.";
+         end if;
+
          Ada.Exceptions.Reraise_Occurrence (Read_Error);
       end if;
 
@@ -543,10 +580,10 @@ package body Asterisk.AMI is
 
       declare
          Socket_Data : constant String := Read_AMI_Message
-           (Buffered_Socket => Self.Buffered_Socket,
-            Delimiter       => CRLF_Delimiter,
-            Timeout         => Timeout,
-            Error           => Read_Error);
+           (AMI_Client   => Self,
+            Delimiter    => CRLF_Delimiter,
+            New_Timeout  => Timeout,
+            Error        => Read_Error);
 
       begin
          if Ada.Exceptions.Exception_Identity (Read_Error) /=
@@ -554,25 +591,35 @@ package body Asterisk.AMI is
          then
 
             Self.Cleanup_Connection;
+
+            if Is_Timeout_Error (Read_Error) then
+               raise AMI_Timeout_Error with "Couldn't login to AMI server at """
+                 & Image (Self.Server_Address) & """ because no login "
+                 & "response was received before the timeout.";
+            end if;
+
             Ada.Exceptions.Reraise_Occurrence (Read_Error);
-
-         elsif Socket_Data'Length = 0 then
-
-            Self.Cleanup_Connection;
-            raise AMI_Error with "Couldn't login to AMI server at """
-              & Image (Self.Server_Address) & """ because no "
-              & "response was received before the timeout.";
 
          elsif not Find_Pattern ("Success", In_String => Socket_Data) then
 
             Self.Cleanup_Connection;
-            raise AMI_Error with "Couldn't login to AMI server at """
-              & Image (Self.Server_Address)
+            raise AMI_Invalid_Credentials_Error with "Couldn't login to AMI "
+              & "server at """ & Image (Self.Server_Address)
               & """, the AMI server responded with:" & CRLF
               & """" & Socket_Data & """";
 
          end if;
       end;
+
+      if Timeout /= GNAT.Sockets.Forever then
+
+         GNAT.Sockets.Set_Socket_Option
+           (Socket => Self.Stream.To_Socket,
+            Level  => GNAT.Sockets.Socket_Level,
+            Option => (Name    => GNAT.Sockets.Receive_Timeout,
+                       Timeout => GNAT.Sockets.Forever));
+      end if;
+
    end Login;
 
    ------------
@@ -586,6 +633,9 @@ package body Asterisk.AMI is
       if not Self.Connected then
          return;
       end if;
+
+      --Self.Deliberate_Disconnect := True;
+      Self.Connected := False;
 
       Set_Header       (Action_Logoff, "Action", "Logoff");
       Self.Send_Action (Action_Logoff);
@@ -612,7 +662,9 @@ package body Asterisk.AMI is
       end if;
 
    exception
-      when others => Self.Socket_Write_Mutex.Release;
+      when others =>
+         Self.Socket_Write_Mutex.Release;
+         --  ! Re-raise exception?
 
    end Send_Action;
 
@@ -621,7 +673,8 @@ package body Asterisk.AMI is
    function Send_Action
      (Self    : in out Client_Type;
       Action  : in out Action_Type;
-      Timeout : in     Duration := 5.0) return Message_Type
+      Timeout : in     Duration := Duration'Last)
+   return Message_Type
    is
       Response_Acc : Message_Access;
 

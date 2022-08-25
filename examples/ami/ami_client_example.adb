@@ -18,12 +18,42 @@ procedure AMI_Client_Example is
      (Family => GNAT.Sockets.Family_Inet,
       Port   => Asterisk.AMI.Default_AMI_Port,
       Addr   => (Family => GNAT.Sockets.Family_Inet,
-                 Sin_V4 => (10, 0, 0, 18)));
+                 Sin_V4 => (10, 0, 0, 15)));
 
    AMI_Client : My_AMI_Client.Client_Type
      (Address_Family   => GNAT.Sockets.Family_Inet,
       Read_Buffer_Size => 300,
       Recursion_Limit  => 3);
+
+   ----------------------
+   -- Reconnect_Client --
+   ----------------------
+
+   procedure Reconnect_Client (AMI_Client : in out My_AMI_Client.Client_Type) is
+      Address_Image : constant String := GNAT.Sockets.Image
+        (AMI_Server_Address);
+
+   begin
+      Reconnect : loop
+         begin
+            AMI_Client.Login
+              (Username => "TEST_USER",
+               Secret   => "REALLY_EASY123",
+               Address  => AMI_Server_Address);
+
+            Put_Line ("AMI client successfully reconnected to server at "
+              & Address_Image);
+
+            exit Reconnect;
+
+         exception
+            when others =>
+               Put_Line ("AMI client failed to reconnect to server at "
+                 & Address_Image & ". Trying again in 5 seconds...");
+               delay 5.0;
+         end;
+      end loop Reconnect;
+   end Reconnect_Client;
 
    ------------------
    -- Message_Loop --
@@ -31,39 +61,23 @@ procedure AMI_Client_Example is
 
    task Message_Loop is
       entry Start;
-      entry Stop;
    end Message_Loop;
 
    task body Message_Loop is
-      Exit_Poll_Loop : Boolean;
-
    begin
-      Forever : loop
+      accept Start;
+      Poll : loop
+         begin
+            AMI_Client.Await_Message;
 
-         Exit_Poll_Loop := False;
-         accept Start;
+         exception
+            when Asterisk.AMI.AMI_Deliberate_Disconnect =>
+               exit Poll;
 
-         Poll : loop
-
-            select
-               accept Stop do
-                  Exit_Poll_Loop := True;
-               end Stop;
-            else
-               null;
-            end select;
-
-            exit Poll when Exit_Poll_Loop;
-
-            begin
-               AMI_Client.Await_Message;
-            exception
-               when others => exit Poll;
-            end;
-
-         end loop Poll;
-
-      end loop Forever;
+            when others                                 =>
+               Reconnect_Client (AMI_Client);
+         end;
+      end loop Poll;
    end Message_Loop;
 
    ---------
@@ -131,6 +145,11 @@ begin
 
       end loop;
 
+--      Put_Line ("Beginning test" & Integer'Image (Test_Index + 1)
+--        & " in 5 seconds...");
+--
+--      delay 5.0;
+
       Test_Results (Test_Index) := Ada.Calendar.Clock - Test_Start_Time;
 
    end loop;
@@ -145,7 +164,7 @@ begin
      & " tests:" & Duration'Image (Test_Total / Test_Results'Length));
 
    AMI_Client.Logoff;
-   Message_Loop.Stop;
+
    Put_Line ("Logged off.");
 
 end AMI_Client_Example;

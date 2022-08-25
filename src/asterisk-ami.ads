@@ -10,31 +10,63 @@ private with Buffered_Streams.Socket_Streamer;
 
 package Asterisk.AMI is
 
---  ! Test ability to re-login to a server after a disconnection,
---  make sure that the way in which it is done is realistic/not
---  convoluted and isn't tied to a very specific pattern.
+--  ! Consider implementing `Message_Type` with a hashed map instead
+--  of arrays of unbounded strings.
 
---  ! Strongly consider using the socket option-based timeout option instead
---  of the `select` based one, which seems to produce an un-handleable
---  exception when it interrupts the system call.
+--  ! Consider conveying timeouts of `Await_Message` via a Boolean out
+--  parameter or return value instead of via exceptions.
+
+--  ! Consider creating a procedure specifically meant for raising exception
+--  that automatically includes the address of the server that the client was
+--  in contact with. This would more easily allow users to identify which
+--  AMI client/server is the one having trouble when multiple are use in a
+--  single application.
+
+--  ! Strongly consider keeping the contents of the `Address` parameter
+--  of the last call to `Login` inside the `Server_Address` component of
+--  the `Client_Type` instance, specifically to make reconnections easier.
 
 --  ! Strongly consider adding a special operator that provides
 --  "syntactic sugar" for adding fields/values to an `Action_Type`.
+--   Though this didn't work out as well as we thought, we would have
+--  to make separate index components inside the `Action_Type` record
+--  for fields and values. Additionally, since operators can only accept
+--  two parameters, we would need two separate ones for adding fields and
+--  values, each of which would have to use a different symbol since their
+--  signatures would be the same. We could pass around the field and value
+--  at the same time via an array, but this array would need to hold string
+--  accesses or unbounded strings, which to create literal values of
+--  succinctly would require another function (pass in string, an array of
+--  string accesses or unbounded strings is returned).
 
 --  ! Consider renaming/declaring `Ada.Streams.Stream_Element_Offset`
 --  directly in this package specification.
 
-   AMI_Error : exception;
-   --  The exception raised when any known error from this package's
-   --  subprograms is encountered (except for client disconnection).
-   --  Subprograms that rause this exception, and for what reasons they
-   --  do so, have it indicated in their descriptions below.
-   --  ! Opt for more specific variations, or use Boolean out parameters?
+   AMI_Server_Unreachable_Error  : exception;
+   --  Indicates that the AMI server at the provided address can't be reached.
+
+   AMI_Timeout_Error             : exception;
+   --  Indicates that the AMI server at the provided address could be reached,
+   --  but didn't respond to the packets sent before the specified timeout.
+
+   AMI_Invalid_Credentials_Error : exception;
+   --  Indicates that incorrect credentials (username/secret) were provided to
+   --  the AMI server at the specified address. In rare cases, this exception
+   --  may also be raised when the response sent back was unintelligible.
+
+   AMI_Deliberate_Disconnect     : exception;
+   --  Indicates that the AMI client was disconnected from the server due to
+   --  a deliberate invocation of the `Logoff` procedure (i.e. not due to a
+   --  disconnection by the server itself or some other network error).
 
    --AMI_Recursion_Limit_Error : exception renames
      --Buffered_Streams.Unique_Buffer.BS_Recursion_Limit_Error;
+
    --  ! What is the best way to handle giving the user access to this
-   --  exception? Generics complicate things a bit...
+   --  exception? Redeclaring a new exception to represent the one in
+   --  the underlying `Buffered_Streams.Unique_Buffer` package would
+   --  probably be the best idea, if we decide to represent it in this
+   --  package at all.
 
    type Message_Type (Header_Count : Natural) is private;
    --  Represents data received from Asterisk, used for AMI events and
@@ -118,11 +150,11 @@ package Asterisk.AMI is
 
    --  Represents a connection to an Asterisk server's AMI interface,
    --  pemitting the sending of actions, receipt of their responses and of
-   --  standalone AMI events. This type is meant to be dervived from in order
-   --  to receive events via a user provided callback, see `Event_Callback`
-   --  near the end of the specification's public part. This type is
-   --  instantiated via a successfull login to an AMI server. Instances of
-   --  this type can safely be shared between multiple tasks (threads).
+   --  standalone AMI events. If standalone AMI events need to be received,
+   --  the type must dervived from and the `On_Event` primitive overridden.
+   --  This type is instantiated via a successfull login to an AMI server.
+   --  Instances of this type can safely be shared between multiple tasks
+   --  (threads).
 
    function Get_Socket (Self : in Client_Type) return GNAT.Sockets.Socket_Type
      with Inline;
@@ -137,31 +169,35 @@ package Asterisk.AMI is
       Address  : in     GNAT.Sockets.Sock_Addr_Type;
       Username : in     String;
       Secret   : in     String;
-      Timeout  : in     Duration := 5.0);
+      Timeout  : in     GNAT.Sockets.Timeval_Duration := 5.0);
    --  Connects a `Client_Type` instance to the specified AMI server using
-   --  the supplied credentials. Upon successfull login, the event loop is
-   --  started, allowing the client to send actions, receive action responses
-   --  and general AMI events. In the scenario that the client is disconnected
+   --  the supplied credentials. Upon successfull login, actions can be sent
+   --  to the server, and `Await_Message` can be invoked to receive action
+   --  responses and/or receive standalone AMI events (if the `On_Event`
+   --  primitive is overridden). In the scenario that the client is disconnected
    --  from the AMI server, this procedure may be invoked again to re-connect
    --  the client. If invoked while the client is already connected to an AMI
    --  server, the client is first disconnected from the server it's currently
    --  logged into.
 
-   --  ! Consider creating invidiual exceptions for each of the below cases.
+   --  `Login` can raise the following exceptions:
 
-   --  Raises 'AMI_ERROR' under the following circumstances:
+   --     `AMI_Server_Unreachable_Error` when the host specified in `Address`
+   --     was unreachable.
 
-   --     1. The host specified in `Address` was unreachable.
+   --     `AMI_Timeout_Error` when the server at `Address` doesn't respond
+   --     before the specified timeout.
 
-   --     2. The client wasn't able to read the server's version infomation.
+   --     `AMI_Credentials_Invalid_Error` when the login credentials
+   --     (username/password) were incorrect, or some other the response
+   --     sent back by Asterisk was unintelligible.
 
-   --     3. No response was received for the login action before the timeout.
+   --     `GNAT.Sockets.Socket_Error` when an unexpected problem occurrs
+   --     with the underlying TCP socket.
 
-   --     4. The client's event loop has terminated due to a handled
-   --        exception in the event callback.
-
-   --     5. The login credentials were incorrect, or some other
-   --        Asterisk-related error occurred.
+   --     Any exception inside the packge `Ada.IO_Exceptions` when an
+   --     unexpected problem occurrs with the underlying stream created
+   --     for the TCP socket.
 
    procedure On_Event
      (Self  : in out Client_Type;
@@ -171,48 +207,68 @@ package Asterisk.AMI is
    --  after a call to `Await_Message` once an AMI event has arrived from
    --  Asterisk. If not overridden, events are silently ignored.
 
-   --procedure On_Disconnect (Self : in out Client_Type) is null;
-   --  To be overridden by the user if needed. This procedure is invoked if
-   --  the client gets disconnected from the AMI server during a call to
-   --  `Await_Message`. A disconnect can occur because of a deliberate logoff,
-   --  a network issue, or socket closure from the server's end.
-   --  ! Consider forcing user's to override, along with discerning between
-   --    deliberate and accidental disconnects.
-   --  ! Pass buffered streams exception back via an out parameter?
-   --  ! Consider getting rid of completely and just determining disconnects
-   --  via exceptions raised or returned from `Await_Message`?
-
-
    procedure Await_Message
      (Self    : in out Client_Type'Class;
-      Timeout : in     Duration := Duration'Last);
-   --  ! Raise buffered streams exception from this subprogram?
+      Timeout : in     GNAT.Sockets.Timeval_Duration := GNAT.Sockets.Forever);
+   --  The "message pump" for the entire client, this procedure must be
+   --  continously invoked in a loop to receive action responses and
+   --  standalone AMI events (usually in a separate task).
+
+   --  Hint on handling exceptions: A good pattern for exception handling
+   --  with this procedure, is explicitly handling the
+   --  `AMI_Deliberate_Disconnect` exception, and then creating a catch-all
+   --  handler for all other exceptions (inside which the client would could
+   --  be reconnected to the server).
+
+   --  `Await_Message` can raise the following exceptions:
+
+   --    `AMI_Deliberate_Disconnect` when `Await_Message` is invoked after
+   --    the client has be deliberately disconnected from the server it was
+   --    previously connected to via a call to `Logoff`.
+
+   --    `Buffered_Streams.Unique_Buffer.Recursion_Limit_Error` when the
+   --    internal stream buffer is not able to find the current message's
+   --    delimiter before encountering the `Recursion_Limit` of the client
+   --    instance.
+
+   --    `GNAT.Sockets.Socket_Error` when an unexpected problem occurrs
+   --    with the underlying TCP socket.
+
+   --    Any exception inside the packge `Ada.IO_Exceptions` when an
+   --    unexpected problem occurrs with the underlying stream created
+   --    for the TCP socket.
+
 
    procedure Send_Action
      (Self   : in out Client_Type;
       Action : in out Action_Type) with Inline;
    --  Sends an `Action_Type` instance to the Asterisk server that the client
    --  is currently connected to, ignoring any response the action might send
-   --  back. This primitive may be used inside the event loop task
-   --  (invoked inside the event callback) without causing a deadlock.
+   --  back. This primitive may be used inside the event loop task (invoked
+   --  inside the `On_Event` callback) without causing a deadlock. If the
+   --  client is not connected to any server, this procedure currently just
+   --  returns silently without any indication.
 
    function Send_Action
      (Self    : in out Client_Type;
       Action  : in out Action_Type;
-      Timeout : in     Duration := 5.0) return Message_Type;
+      Timeout : in     Duration := Duration'Last)
+   return Message_Type;
    --  Similar to the above procedure, but waits `Timeout` seconds for a
    --  response to `Action`. If a response is received within the timeout,
    --  then it is the function's return value, otherwise the constant
-   --  `No_Response` is returned. Receipt of an action response cannot be performed
-   --  inside the `Event_Callback` primitive, or any subprogram that is invoked
-   --  inside it. Attempting to do this will result in the exception `AMI_Error`
-   --  being raised.
+   --  `No_Response` is returned. Receipt of an action response cannot be
+   --  performed inside the `On_Event` primitive, or any subprogram that is
+   --  invoked inside it, unless it's execution is performed inside a
+   --  separate task. If the client is not connected to any server, this
+   --  procedure currently just returns silently without any indication.
 
    procedure Logoff (Self : in out Client_Type);
    --  Disconnects a `Client_Type` instance from the Asterisk server it's
    --  currently connected to. After a call to this primitive, the client
    --  will no longer be able to send actions, receive actions responses or
-   --  general AMI events until it is reconnected to an AMI server via `Login`.
+   --  standalone AMI events until it is reconnected to an AMI server via
+   --  `Login`.
 
    function Is_Connected (Self : in Client_Type) return Boolean with Inline;
    --  Returns `True` if `Client` is still connected to the server that was
@@ -223,8 +279,11 @@ package Asterisk.AMI is
 
    function Get_Server_Address
      (Self : in Client_Type) return GNAT.Sockets.Sock_Addr_Type;
-   --  Returns the socket address of the AMI server that the client was last
-   --  connected to.
+   --  Returns the socket address of the AMI server that the client is
+   --  currently connected to. If the client is not currently connected to
+   --  any server, returns `GNAT.Sockets.Any_Inet_Addr` or
+   --  `GNAT.Sockets.Any_Inet6_Addr` in combination with
+   --  `GNAT.Sockets.No_Port`.
 
    function Get_AMI_Version (Self : in Client_Type) return String with Inline;
    --  Returns the version number that was provided by the currently connected
@@ -315,10 +374,15 @@ private
          --  ! We may want to utilize the write buffer to avoid having to
          --  manually concatenate messages on the stack.
 
-      Socket_Write_Mutex : Critical_Section;
+      Last_Await_Timeout : GNAT.Sockets.Timeval_Duration :=
+        GNAT.Sockets.Forever;
+
+      Socket_Write_Mutex    : Critical_Section;
       --  ! Replace with atomic spin lock?
-      Connected          : Boolean        := False;
-      Server_Address     : Sock_Addr_Type :=
+
+      Connected             : Boolean        := False;
+      Deliberate_Disconnect : Boolean        := False;
+      Server_Address        : Sock_Addr_Type :=
         (case Address_Family is
             when Family_Inet =>
                (Family => Family_Inet,
