@@ -1,5 +1,5 @@
-with "aws";
-with "gnatcoll";
+--with "aws";
+--with "gnatcoll";
 with "./deps/ada_buffered_streams/buffered_streams.gpr";
 
 
