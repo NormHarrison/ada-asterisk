@@ -1,4 +1,4 @@
---with Ada.Text_IO;       use Ada.Text_IO;
+with Ada.Text_IO;       use Ada.Text_IO;
 with Ada.IO_Exceptions;
 
 with GNAT.Byte_Swapping;
@@ -6,18 +6,20 @@ with GNAT.Byte_Swapping;
 
 package body Asterisk.AudioSocket is
 
-   ------------------
-   -- Code_To_Kind --
-   ------------------
+   Code_To_Kind : constant array (Byte) of Message_Kind :=
+     (Hang_Up_Message_Code => Kind_Hang_Up,
+      UUID_Message_Code    => Kind_UUID,
+      Silence_Message_Code => Kind_Silence,
+      Audio_Message_Code   => Kind_Audio,
+      Error_Message_Code   => Kind_Error,
+      others               => Kind_Unknown);
+   --  ! What assembly does this generate? Should we avoid using an array the
+   --  size of `Byte`? Will this help efficiency?
 
-   function Code_To_Kind (Code : in Byte) return Message_Kind
-   is (case Code is
-          when Hang_Up_Message_Code => Kind_Hang_Up,
-          when UUID_Message_Code    => Kind_UUID,
-          when Silence_Message_Code => Kind_Silence,
-          when Audio_Message_Code   => Kind_Audio,
-          when Error_Message_Code   => Kind_Error,
-          when others               => Kind_Unknown);
+
+--------------------------------------
+-- Begginning of public subprograms --
+--------------------------------------
 
    ----------
    -- Kind --
@@ -40,57 +42,57 @@ package body Asterisk.AudioSocket is
    function Receive_Message
      (Connection : in out Connection_Type) return Message_Type
    is
-      Channel : GNAT.Sockets.Stream_Access :=
-        GNAT.Sockets.Stream (Connection.Socket);
-
-      Message_Code : Byte;
-      Message_Size : Short_Integer;
+      Message_Header : Byte_Array (1 .. 3);
 
    begin
       if Connection.Hung_Up then
          return No_Message;
       end if;
 
-      Byte'Read (Channel, Message_Code);
-      Short_Integer'Read (Channel, Message_Size);
+      Byte_Array'Read (Connection.Stream, Message_Header);
       --  Read the 3 byte header of the message:
-      --    - 1 byte for the type (`Message_Code`).
-      --    - 2 bytes for the size (`Message_Size`).
+      --    - 1 byte for the message type.
+      --    - 2 bytes for the message length.
 
-      GNAT.Byte_Swapping.Swap2 (Message_Size'Address);
+      GNAT.Byte_Swapping.Swap2 (Message_Header (2)'Address);
       --  The size is sent in big endian byte order and must
       --  be converted before being used to read the payload.
 
       declare
-         Message : Message_Type (Size => Integer (Message_Size));
+         Length : Unsigned_16;
+         for Length'Address use Message_Header (2)'Address;
+         Message : Message_Type (Size => Length);
 
       begin
-         Message.Kind := Code_To_Kind (Message_Code);
+         Message.Kind := Code_To_Kind (Message_Header (1));
 
          --  We only act upon the presense of an error in this function's body.
          --  The original plan was to act upon hang up messages too, but Asterisk
          --  never actually sends such messages to us.
 
          if Message.Kind = Kind_Error then
-            Connection.Hung_Up := True;
 
-            case Payload (Message) (1) is
+            Connection.Hung_Up := True;
+            GNAT.Sockets.Close_Socket (Connection.Socket);
+            GNAT.Sockets.Free (Connection.Stream);
+
+            case Message.Payload (1) is
                when Hang_Up_Error_Code       => raise Hang_Up_Error;
                when Frame_Forward_Error_Code => raise Frame_Forward_Error;
                when Memory_Error_Code        => raise Memory_Error;
                when others                   => raise Unknown_Error;
             end case;
-            --  ! Does the socket need to be closed here?
          end if;
 
-         Byte_Array'Read (Channel, Message.Payload);
-         GNAT.Sockets.Free (Channel);
+         Byte_Array'Read (Connection.Stream, Message.Payload);
          return Message;
       end;
 
    exception
       when Ada.IO_Exceptions.End_Error =>
-         GNAT.Sockets.Free (Channel);
+         --  ! Allow to propagate, or handle GNAT.Sockets.Socket_Error too?
+         --  This is usually the code that ends up setting `Hung_Up` to true.
+         GNAT.Sockets.Free (Connection.Stream);
          Connection.Hung_Up := True;
          return No_Message;
 
@@ -104,40 +106,34 @@ package body Asterisk.AudioSocket is
      (Connection : in out Connection_Type;
       Audio      : in     Byte_Array)
    is
-      Payload_Size : Short_Integer;
-      Channel      : GNAT.Sockets.Stream_Access;
+      Audio_Length : constant Unsigned_16 := Audio'Length;
+
+      Message_Length : Byte_Array (1 .. 2);
+      for Message_Length'Address use Audio_Length'Address;
+
+      Message_Header : Byte_Array (1 .. 3);
 
    begin
-      if Audio'Length > Short_Integer'Last then
-         raise Constraint_Error with "Size of audio data passed to "
-           & "`Send_Audio`" & Integer'Image (Audio'Length)
-           & ", is larger than the maximum allowed message size of "
-           & "65,535 bytes. The audio must be chunked into this size "
-           & "or smaller before being sent.";
-
-      elsif Connection.Hung_Up then
+      if Connection.Hung_Up then
          return;
       end if;
 
-      Channel := GNAT.Sockets.Stream (Connection.Socket);
-
-      Byte'Write (Channel, Audio_Message_Code);
+      Message_Header (1) := Audio_Message_Code;
       --  Message kind is always audio.
 
-      Payload_Size := Audio'Length;
-      GNAT.Byte_Swapping.Swap2 (Payload_Size'Address);
-      Short_Integer'Write (Channel, Payload_Size);
+      Message_Header (2 .. 3) := Message_Length;
+
+      GNAT.Byte_Swapping.Swap2 (Message_Header (2)'Address);
       --  Similar to the `Receive_Message` function, the endianess
       --  of the payload size must be swapped to big endian.
 
-      Byte_Array'Write (Channel, Audio);
-
-      GNAT.Sockets.Free (Channel);
+      Byte_Array'Write (Connection.Stream, Message_Header & Audio);
 
    exception
       when Ada.IO_Exceptions.End_Error =>
-         GNAT.Sockets.Free (Channel);
          Connection.Hung_Up := True;
+         GNAT.Sockets.Close_Socket (Connection.Socket);
+         GNAT.Sockets.Free (Connection.Stream);
 
    end Send_Audio;
 
@@ -172,6 +168,7 @@ package body Asterisk.AudioSocket is
       if not Connection.Hung_Up then
          Connection.Hung_Up := True;
          GNAT.Sockets.Close_Socket (Connection.Socket);
+         GNAT.Sockets.Free (Connection.Stream);
       end if;
    end Hang_Up;
 
@@ -214,7 +211,7 @@ package body Asterisk.AudioSocket is
          Mode   => Socket_Stream);
 
       Bind_Socket (Server.Socket, Address);
-      Server.Port := GNAT.Sockets.Get_Socket_Name (Server.Socket).Port;
+      Server.Address := Address;
 
       Listen_Socket (Server.Socket, Queue_Size);
       Server.Listening := True;
@@ -228,6 +225,8 @@ package body Asterisk.AudioSocket is
      (Server     : in     Server_Type;
       Connection : in out Connection_Type)
    is
+      use type GNAT.Sockets.Stream_Access;
+
       UUID_Message : Message_Type (Size => 16);
       --  The UUID message is always the first to arrive, and is always
       --  the same size (16 bytes), so we can declare it ahead of time.
@@ -238,16 +237,27 @@ package body Asterisk.AudioSocket is
          Socket  => Connection.Socket,
          Address => Connection.Peer_Name);
 
+      if Connection.Stream /= null then
+         GNAT.Sockets.Free (Connection.Stream);
+      end if;
+
+      Connection.Stream := GNAT.Sockets.Stream (Connection.Socket);
       Connection.Hung_Up := False;
-      --  Incase `Connection_Type` instances get re-used, reset their
-      --  `Hung_Up` component to false after a successfull call to `Accept`.
+      --  Incase `Connection_Type` instances get re-used, reset their `Hung_Up`
+      --  component to false and free any previously allocated stream after
+      --  a successfull call to `Accept`.
+
+      --  ! If we don't let exceptions propagate, should we reset
+      --  `Connection.UUID` to `No_UUID` too in case reading it below fails?
 
       UUID_Message := Receive_Message (Connection);
       Connection.UUID := Payload (UUID_Message);
 
    exception
       when GNAT.Sockets.Socket_Error =>
+      --  ! Let this propagate?
          Connection.Hung_Up := True;
+         GNAT.Sockets.Free (Connection.Stream);
 
    end Accept_Connection;
 
@@ -256,12 +266,23 @@ package body Asterisk.AudioSocket is
    ------------------
 
    procedure Close_Server (Server : in out Server_Type) is
+      use type GNAT.Sockets.Family_Type;
+
    begin
       if Server.Listening then
          GNAT.Sockets.Close_Socket (Server.Socket);
          Server.Socket    := GNAT.Sockets.No_Socket;
-         Server.Port      := GNAT.Sockets.No_Port;
          Server.Listening := False;
+
+         Server.Address :=
+           (if Server.Address_Family = GNAT.Sockets.Family_Inet then
+              (Family => GNAT.Sockets.Family_Inet,
+               Port   => GNAT.Sockets.No_Port,
+               Addr   => GNAT.Sockets.Any_Inet_Addr)
+            else
+              (Family => GNAT.Sockets.Family_Inet6,
+               Port   => GNAT.Sockets.No_Port,
+               Addr   => GNAT.Sockets.Any_Inet6_Addr));
       end if;
    end Close_Server;
 
@@ -272,13 +293,13 @@ package body Asterisk.AudioSocket is
    function Is_Listening (Server : in Server_Type) return Boolean
    is (Server.Listening);
 
-   --------------------
-   -- Get_Bound_Port --
-   --------------------
+   ----------------------
+   -- Get_Bind_Address --
+   ----------------------
 
-   function Get_Bound_Port (Server : in Server_Type)
-     return GNAT.Sockets.Port_Type
-   is (Server.Port);
+   function Get_Bind_Address (Server : in Server_Type)
+     return GNAT.Sockets.Sock_Addr_Type
+   is (Server.Address);
 
    ----------------
    -- Get_Socket --

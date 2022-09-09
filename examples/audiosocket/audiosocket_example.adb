@@ -24,22 +24,31 @@ procedure AudioSocket_Example is
 
       while not Has_Hung_Up (Connection) loop
          declare
-            Message : Asterisk.AudioSocket.Message_Type :=
+            Message : constant Asterisk.AudioSocket.Message_Type :=
               Receive_Message (Connection);
 
          begin
             Put_Line ("Received message was of kind " & Kind (Message)'Image);
          end;
+
       end loop;
+
+      Put ("Communication with connection with UUID");
+      for Index in Connection_UUID'Range loop
+        Put (Byte'Image (Connection_UUID (Index)));
+      end loop;
+      Put_Line (" is now over.");
+
    end Handle_Connection;
 
    Bind_Address : constant GNAT.Sockets.Sock_Addr_Type :=
      (Family => GNAT.Sockets.Family_Inet,
       Port   => 35551,
-      Addr   => (Family => GNAT.Sockets.Family_Inet,
-                 Sin_V4 => (10, 0, 0, 26)));
+      Addr   => GNAT.Sockets.Any_Inet_Addr);
 
-   AS_Server     : Asterisk.AudioSocket.Server_Type;
+   AS_Server     : Asterisk.AudioSocket.Server_Type
+     (Address_Family => GNAT.Sockets.Family_Inet);
+
    AS_Connection : Asterisk.AudioSocket.Connection_Type
      (Address_Family => GNAT.Sockets.Family_Inet);
 
@@ -47,6 +56,8 @@ begin
    Create_Server
      (Server  => AS_Server,
       Address => Bind_Address);
+
+   Put_Line ("Listening at " & GNAT.Sockets.Image (Bind_Address));
 
    Indefinite : loop
       Put_Line ("Ready for the next connection...");
